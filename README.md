@@ -4,7 +4,7 @@
 
 ## Introduction
 
-Official backend service for travel_audio_guide_flutter, providing Taipei travel audio guide data through a REST API with Swagger documentation.
+Go backend for the travel audio guide system, providing RESTful API for user profile management with Supabase Auth JWT verification (ES256/JWKS), built using chi, pgx, sqlc, and Docker.
 
 This project is for learning and technical practice.
 
