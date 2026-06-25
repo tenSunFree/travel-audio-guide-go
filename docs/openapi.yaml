@@ -1,0 +1,404 @@
+openapi: "3.0.3"
+
+info:
+  title: Travel Audio Guide API
+  version: "1.0.0"
+  description: |
+    ## Instructions
+    This is the backend API for the travel audio guide.
+
+    ## Verification Method
+    All `/api/v1/*` requests require a Supabase JWT token.
+
+    **Steps:**
+    1. Click the **Authorize** button in the upper right corner.
+    2. Enter the Supabase `access_token` in the `bearerAuth (http, Bearer)` field.
+    3. Click **Authorize** → **Close**.
+    4. Subsequent requests will automatically include `Authorization: Bearer <token>`.
+
+    ## Security Design
+    - The frontend **does not pass user_id**; the backend automatically obtains it from the JWT `claims.sub`.
+    - All user-scoped SQL queries use the user_id parsed from the JWT as a condition.
+
+servers:
+  - url: http://localhost:8080
+    description: Local development environment
+
+tags:
+  - name: System
+    description: System status
+  - name: Me
+    description: Current user profile operations
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        The access token obtained after logging into Supabase.
+        When entering it, **you do not need to** add the `Bearer` prefix; Swagger UI will add it automatically.
+
+  schemas:
+    # Profile (Return Format)
+    Profile:
+      type: object
+      description: User profile information
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "The Supabase user_id comes from JWT claims.sub and is filled in by the backend."
+          example: "0e9b1a0e-1234-5678-abcd-xxxxxxxxxxxx"
+        email:
+          type: string
+          format: email
+          nullable: true
+          description: "login email"
+          example: "user@example.com"
+        display_name:
+          type: string
+          nullable: true
+          description: "Display name, 1–50 characters"
+          example: "Sun"
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+          description: "Profile picture URL"
+          example: "https://example.com/avatar.png"
+        preferred_language:
+          type: string
+          description: "Preferred language"
+          enum: [zh-TW, zh-CN, en, ja]
+          example: "zh-TW"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-14T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-06-14T00:10:00Z"
+
+    # UpdateMeRequest (Body for PUT /me)
+    UpdateMeRequest:
+      type: object
+      description: |
+        Request body for updating the profile.
+        **All fields are optional**; only send the fields you want to update, and omitted fields keep their original values.
+        **Do not send user_id**; the backend retrieves it automatically from the JWT.
+      properties:
+        display_name:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 50
+          description: "Display name, 1-50 characters"
+          example: "Sun"
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+          description: "Avatar image URL, must be a valid URL (https://...)"
+          example: "https://example.com/avatar.png"
+        preferred_language:
+          type: string
+          nullable: true
+          enum: [zh-TW, zh-CN, en, ja]
+          description: "Preferred language, allowed values: zh-TW / zh-CN / en / ja"
+          example: "zh-TW"
+      # Note: required is intentionally omitted; all fields are optional
+
+    # Standard response format
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Profile'
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: "Error message"
+          example: "missing authorization header"
+
+paths:
+  # Health check
+  /healthz:
+    get:
+      tags: [System]
+      summary: Health check
+      description: Verify that the server is running normally. No token required.
+      security: []    # Override global security; this endpoint does not require authentication
+      responses:
+        "200":
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: "ok"
+              example:
+                success: true
+                data:
+                  status: "ok"
+
+  # /api/v1/me
+  /api/v1/me:
+    get:
+      tags: [Me]
+      summary: Get the profile of the currently logged-in user
+      description: |
+        Retrieve the user_id from the JWT token and query the corresponding profile.
+
+        ### Special Notes
+        - **The profile will be automatically created if it does not exist.** The frontend does not need to call the profile creation API separately.
+        - For first login, simply call this API.
+
+        ### Required Headers
+        ```
+        Authorization: Bearer <supabase_access_token>
+        ```
+
+        ### Backend Flow
+        1. Retrieve the Bearer token from the `Authorization` header.
+        2. Verify the Supabase JWT (HS256).
+        3. Retrieve the `user_id` from `claims.sub`.
+        4. Query the `profiles` table.
+        5. If it does not exist, it will be automatically created. `preferred_language` is preset to `zh-TW`.
+        6. Return the profile.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Successfully obtained (or automatically created) profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              examples:
+                existing_profile:
+                  summary: A profile already exists.
+                  value:
+                    success: true
+                    data:
+                      id: "0e9b1a0e-1234-5678-abcd-xxxxxxxxxxxx"
+                      email: "user@example.com"
+                      display_name: "Sun"
+                      avatar_url: "https://example.com/avatar.png"
+                      preferred_language: "zh-TW"
+                      created_at: "2026-06-14T00:00:00Z"
+                      updated_at: "2026-06-14T00:10:00Z"
+                new_profile:
+                  summary: The profile is automatically created upon first login.
+                  value:
+                    success: true
+                    data:
+                      id: "0e9b1a0e-1234-5678-abcd-xxxxxxxxxxxx"
+                      email: "user@example.com"
+                      display_name: null
+                      avatar_url: null
+                      preferred_language: "zh-TW"
+                      created_at: "2026-06-14T00:00:00Z"
+                      updated_at: "2026-06-14T00:00:00Z"
+        "401":
+          description: |
+            Unauthorized, possible reasons:
+            - No `Authorization` header
+            - Incorrect format (not `Bearer <token>`)
+            - Token expired
+            - Incorrect token signature (incorrect JWT Secret)
+            - Token's `role` is not `authenticated`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_header:
+                  summary: No Authorization header included
+                  value:
+                    success: false
+                    error: "missing authorization header"
+                invalid_token:
+                  summary: The token is invalid or has expired.
+                  value:
+                    success: false
+                    error: "invalid or expired token"
+        "500":
+          description: Server internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "failed to get profile"
+
+    put:
+      tags: [Me]
+      summary: Update the current logged-in user's profile
+      description: |
+        Update the profile data of the currently logged-in user.
+
+        ### Important Rules
+        - **All fields are optional**; only send the fields you want to update, and omitted fields keep their original values
+        - **Do not send `user_id`**; the backend automatically gets it from JWT `claims.sub`
+        - Call `GET /api/v1/me` first to ensure the profile exists before updating
+
+        ### Update Name Only (Leave Other Fields Unchanged)
+        ```json
+        { "display_name": "Sun" }
+        ```
+
+        ### Update Language Only (Leave Other Fields Unchanged)
+        ```json
+        { "preferred_language": "en" }
+        ```
+
+        ### Update All Fields
+        ```json
+        {
+          "display_name": "Sun",
+          "avatar_url": "https://example.com/avatar.png",
+          "preferred_language": "zh-TW"
+        }
+        ```
+
+        ### Field Rules
+        | Field | Rule |
+        |------|------|
+        | `display_name` | 1-50 characters; leading/trailing spaces are automatically trimmed |
+        | `avatar_url` | Must be a valid URL (https://...) |
+        | `preferred_language` | Allowed values only: `zh-TW` `zh-CN` `en` `ja` |
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMeRequest'
+            examples:
+              name_only:
+                summary: Update name only
+                value:
+                  display_name: "Sun"
+              language_only:
+                summary: Update language only
+                value:
+                  preferred_language: "en"
+              update_all:
+                summary: Update all fields
+                value:
+                  display_name: "Sun"
+                  avatar_url: "https://example.com/avatar.png"
+                  preferred_language: "zh-TW"
+      responses:
+        "200":
+          description: Update succeeded; returns the full updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                data:
+                  id: "0e9b1a0e-1234-5678-abcd-xxxxxxxxxxxx"
+                  email: "user@example.com"
+                  display_name: "Sun"
+                  avatar_url: "https://example.com/avatar.png"
+                  preferred_language: "zh-TW"
+                  created_at: "2026-06-14T00:00:00Z"
+                  updated_at: "2026-06-14T00:10:00Z"
+        "400":
+          description: Invalid request body format (not valid JSON)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "invalid JSON body"
+        "401":
+          description: Unauthorized (token is invalid or expired)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "missing authorization header"
+        "403":
+          description: Token role is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "token role is not authenticated"
+        "404":
+          description: |
+            Profile does not exist.
+            Please call `GET /api/v1/me` first to create the profile, then update it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "profile not found, call GET /api/v1/me first"
+        "422":
+          description: |
+            Field validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_name:
+                  summary: Invalid name length
+                  value:
+                    success: false
+                    error: "display_name: must be 1–50 characters"
+                invalid_url:
+                  summary: Invalid URL format
+                  value:
+                    success: false
+                    error: "avatar_url: must be a valid URL (https://...)"
+                invalid_language:
+                  summary: Language is not in the allowed list
+                  value:
+                    success: false
+                    error: "preferred_language: must be one of: zh-TW, zh-CN, en, ja"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "failed to update profile"

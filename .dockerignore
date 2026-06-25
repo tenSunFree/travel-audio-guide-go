@@ -1,0 +1,22 @@
+# Git
+.git
+.gitignore
+
+# Files (not included in the build image)
+docs/
+README.md
+
+# Environmental variables (absolutely do not enter image)
+.env
+*.env
+
+# Development Tools
+Makefile
+
+# Compilation output
+bin/
+*.exe
+
+# Docker itself
+Dockerfile
+docker-compose.yml

@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: travel_audio_guide_postgres
+    environment:
+      POSTGRES_DB: travel_audio_guide
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/schema/001_create_profiles.sql:/docker-entrypoint-initdb.d/001_create_profiles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d travel_audio_guide"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: travel_audio_guide_api
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: local
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://app:app_password@postgres:5432/travel_audio_guide?sslmode=disable
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
+      SUPABASE_JWKS_URL: ${SUPABASE_JWKS_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    container_name: travel_audio_guide_swagger
+    ports:
+      - "8081:8080"
+    environment:
+      SWAGGER_JSON: /docs/openapi.yaml
+    volumes:
+      - ./docs:/docs:ro
+
+volumes:
+  postgres_data:
