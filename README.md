@@ -1,10 +1,19 @@
 # travel-audio-guide-go
 
+[![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![chi](https://img.shields.io/badge/Router-chi_v5-blue)](https://github.com/go-chi/chi)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![sqlc](https://img.shields.io/badge/Codegen-sqlc-00ADD8)](https://sqlc.dev)
+[![Docker](https://img.shields.io/badge/Container-Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com)
+[![Architecture](https://img.shields.io/badge/Architecture-Feature--First-4CAF50)](#tech-stack)
+
 ---
 
 ## Introduction
 
-Go backend for the travel audio guide system, providing RESTful API for user profile management with Supabase Auth JWT verification (ES256/JWKS), built using chi, pgx, sqlc, and Docker.
+Go backend for the travel audio guide system, providing RESTful API for user profile management with
+Supabase Auth JWT verification (ES256/JWKS), built using chi, pgx, sqlc, and Docker.
 
 This project is for learning and technical practice.
 
@@ -12,12 +21,15 @@ This project is for learning and technical practice.
 
 ## Related App Client
 
-This backend is part of a full-stack travel audio guide system and is designed to work together with the Flutter app:
+This backend is part of a full-stack travel audio guide system and is designed to work together with
+the Flutter app:
 
 - [travel-audio-guide-flutter](https://github.com/tenSunFree/travel-audio-guide-flutter)
 
-The Flutter app provides a cross-platform mobile client built with Flutter, Riverpod, Drift, Clean Architecture, and Supabase Auth.
-It handles user authentication via Supabase, retrieves the JWT access token, and calls this Go backend API for profile management and user data operations.
+The Flutter app provides a cross-platform mobile client built with Flutter, Riverpod, Drift, Clean
+Architecture, and Supabase Auth.
+It handles user authentication via Supabase, retrieves the JWT access token, and calls this Go
+backend API for profile management and user data operations.
 
 ---
 
@@ -45,15 +57,19 @@ It handles user authentication via Supabase, retrieves the JWT access token, and
 ## Tech Stack
 
 - **Go 1.25**
-  Statically typed, compiled language — high performance, simple deployment, minimal runtime overhead
+  Statically typed, compiled language — high performance, simple deployment, minimal runtime
+  overhead
 - **chi v5**
-  Lightweight HTTP router with composable middleware and route grouping, more flexible than standard `net/http`
+  Lightweight HTTP router with composable middleware and route grouping, more flexible than standard
+  `net/http`
 - **pgx v5 + pgxpool**
-  PostgreSQL driver with connection pooling via pgxpool, outperforms `database/sql` for concurrent workloads
+  PostgreSQL driver with connection pooling via pgxpool, outperforms `database/sql` for concurrent
+  workloads
 - **sqlc**
   Generates type-safe Go code from SQL — no manual row scanning, SQL managed in `.sql` files
 - **Supabase Auth + ES256/JWKS**
-  JWTs are signed by Supabase using a private key (ES256); the backend fetches the public key from the JWKS endpoint for verification — more secure than symmetric HS256
+  JWTs are signed by Supabase using a private key (ES256); the backend fetches the public key from
+  the JWKS endpoint for verification — more secure than symmetric HS256
 - **slog (Go built-in)**
   Structured logger introduced in Go 1.21, outputs JSON format suitable for production observability
 - **OpenAPI 3.0 + Swagger UI**
@@ -63,7 +79,8 @@ It handles user authentication via Supabase, retrieves the JWT access token, and
 - **Layered Architecture (Feature-first)**
   Each feature is grouped under `internal/<feature>/` with three internal layers:
   `handler` → `service` → `repository`.
-  Each layer has a single responsibility — handlers never write SQL, services never touch HTTP, repositories never handle JWT.
+  Each layer has a single responsibility — handlers never write SQL, services never touch HTTP,
+  repositories never handle JWT.
 
 ---
 
@@ -72,11 +89,182 @@ It handles user authentication via Supabase, retrieves the JWT access token, and
 - The client only sends `Authorization: Bearer <token>` — never a `user_id`
 - The backend extracts `user_id` from JWT `claims.sub`
 - All SQL `WHERE id = $1` conditions are derived from the JWT — client input is never trusted
-- Supabase uses ES256 (asymmetric signing) — the backend holds only the public key; the private key never leaves Supabase
+- Supabase uses ES256 (asymmetric signing) — the backend holds only the public key; the private key
+  never leaves Supabase
+
+---
+
+## Prerequisites
+
+- [Go 1.25+](https://go.dev/dl/)
+- [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
+- A [Supabase](https://supabase.com/) project (used to obtain the JWKS URL or JWT Secret for auth
+  verification)
+- (Optional) [sqlc](https://docs.sqlc.dev/) — only needed if you plan to regenerate DB code from
+  `.sql` files
 
 ---
 
 ## Environment
+
+Copy `.env.example` to `.env` and fill in the values:
+
+```bash
+cp .env.example .env
+```
+
+| Variable              | Required                                                       | Description                                                                  | Example                                                                      |
+|-----------------------|----------------------------------------------------------------|------------------------------------------------------------------------------|------------------------------------------------------------------------------|
+| `APP_ENV`             | No                                                             | Application environment, defaults to `local`                                 | `local`                                                                      |
+| `HTTP_ADDR`           | No                                                             | Address/port the HTTP server listens on, defaults to `:8080`                 | `:8080`                                                                      |
+| `DATABASE_URL`        | **Yes**                                                        | PostgreSQL connection string                                                 | `postgres://user:password@localhost:5432/travel_audio_guide?sslmode=disable` |
+| `SUPABASE_JWKS_URL`   | One of `SUPABASE_JWKS_URL` / `SUPABASE_JWT_SECRET` is required | Supabase JWKS endpoint, used for ES256 asymmetric verification (recommended) | `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json`            |
+| `SUPABASE_JWT_SECRET` | Same as above                                                  | Supabase JWT Secret, used for HS256 symmetric verification (fallback)        | `your-supabase-jwt-secret`                                                   |
+
+> You can find `SUPABASE_JWKS_URL` / `SUPABASE_JWT_SECRET` in your Supabase project dashboard under
+**Project Settings → API**.
+> If both are provided, the backend prefers `SUPABASE_JWKS_URL` (ES256/JWKS mode).
+
+---
+
+## Getting Started
+
+### Option 1: Run everything with Docker Compose (recommended)
+
+Starts PostgreSQL, the Go API, and Swagger UI together:
+
+```bash
+make docker-up
+```
+
+Check logs:
+
+```bash
+make docker-logs
+```
+
+Stop everything:
+
+```bash
+make docker-down
+```
+
+### Option 2: Run locally with Go
+
+Start only PostgreSQL via Docker:
+
+```bash
+make docker-db
+```
+
+Run the API directly on your machine:
+
+```bash
+make run
+```
+
+### Verify it's running
+
+```bash
+curl http://localhost:8080/healthz
+# {"status":"ok"}
+```
+
+---
+
+## API Documentation (Swagger UI)
+
+The OpenAPI contract lives in [`docs/openapi.yaml`](./docs/openapi.yaml) and is served as an
+interactive Swagger UI via Docker Compose.
+
+After running `make docker-up`, open:
+
+```
+http://localhost:<SWAGGER_PORT>
+```
+
+> Replace `<SWAGGER_PORT>` with the port mapped to the `swagger-ui` service in `docker-compose.yml`.
+
+---
+
+## API Endpoints
+
+All `/api/v1/*` routes require an `Authorization: Bearer <token>` header (a Supabase Auth JWT). The
+`user_id` is always derived from the token — it is never accepted as client input.
+
+### `GET /api/v1/me`
+
+Fetch the current user's profile. The profile is auto-created on first login.
+
+```http
+GET /api/v1/me
+Authorization: Bearer <token>
+```
+
+**200 OK**
+
+```json
+{
+  "id": "uuid",
+  "display_name": "string",
+  "avatar_url": "string",
+  "created_at": "2026-01-01T00:00:00Z",
+  "updated_at": "2026-01-01T00:00:00Z"
+}
+```
+
+### `PUT /api/v1/me`
+
+Partially update the current user's profile. Only the fields included in the request body are
+updated.
+
+```http
+PUT /api/v1/me
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "display_name": "New Name"
+}
+```
+
+**200 OK**
+
+```json
+{
+  "id": "uuid",
+  "display_name": "New Name",
+  "avatar_url": "string",
+  "created_at": "2026-01-01T00:00:00Z",
+  "updated_at": "2026-01-01T00:00:00Z"
+}
+```
+
+> See [`docs/openapi.yaml`](./docs/openapi.yaml) or the Swagger UI above for the full schema.
+
+---
+
+## Testing
+
+```bash
+make test
+```
+
+---
+
+## Useful Make Commands
+
+| Command            | Description                                              |
+|--------------------|----------------------------------------------------------|
+| `make run`         | Run the server locally (requires PostgreSQL running)     |
+| `make build`       | Compile a static binary into `./bin/server`              |
+| `make docker-up`   | Start PostgreSQL, API, and Swagger UI via Docker Compose |
+| `make docker-db`   | Start only PostgreSQL (for local development)            |
+| `make docker-down` | Stop all Docker Compose services                         |
+| `make docker-logs` | Tail API container logs                                  |
+| `make sqlc-gen`    | Regenerate type-safe Go code from SQL (requires `sqlc`)  |
+| `make tidy`        | Run `go mod tidy`                                        |
+| `make test`        | Run all tests                                            |
 
 ---
 
@@ -97,9 +285,10 @@ If there is any infringement, please contact me for removal. Thank you.
 
 ## License
 
-This repository is intended for learning and demonstration.
+This repository is intended for learning and demonstration purposes.
 
-If you plan to open-source it, please choose a license and confirm third-party asset usage rights.
+If you plan to open-source this project, please add a `LICENSE` file (e.g. MIT) and confirm the
+usage rights of any third-party assets before distribution.
 
 ---
 
@@ -107,22 +296,9 @@ If you plan to open-source it, please choose a license and confirm third-party a
 
 ```
 travel-audio-guide-go
-├─ .dockerignore
-├─ .idea
-│  ├─ caches
-│  │  └─ deviceStreaming.xml
-│  ├─ copilot.data.migration.ask2agent.xml
-│  ├─ markdown.xml
-│  ├─ misc.xml
-│  ├─ modules.xml
-│  ├─ travel-audio-guide-go.iml
-│  ├─ vcs.xml
-│  └─ workspace.xml
 ├─ cmd
-│  ├─ server
-│  │  └─ main.go
-│  └─ tmp
-│     └─ build-errors.log
+│  └─ server
+│     └─ main.go
 ├─ docker-compose.yml
 ├─ Dockerfile
 ├─ docs
@@ -153,10 +329,9 @@ travel-audio-guide-go
 │  │  ├─ cors.go
 │  │  ├─ logger.go
 │  │  └─ recovery.go
-│  ├─ server
-│  │  ├─ router.go
-│  │  └─ server.go
-│  └─ {auth,me,middleware,server,config,database,db}
+│  └─ server
+│     ├─ router.go
+│     └─ server.go
 ├─ Makefile
 ├─ pkg
 │  └─ response
