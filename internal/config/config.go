@@ -6,20 +6,22 @@ import (
 )
 
 type Config struct {
-	AppEnv            string
-	HTTPAddr          string
-	DatabaseURL       string
-	SupabaseJWTSecret string
-	SupabaseJWKSURL   string
+	AppEnv              string
+	HTTPAddr            string
+	DatabaseURL         string
+	SupabaseJWTSecret   string
+	SupabaseJWKSURL     string
+	TaipeiTravelBaseURL string
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		AppEnv:            getEnv("APP_ENV", "local"),
-		HTTPAddr:          getEnv("HTTP_ADDR", ":8080"),
-		DatabaseURL:       os.Getenv("DATABASE_URL"),
-		SupabaseJWTSecret: os.Getenv("SUPABASE_JWT_SECRET"),
-		SupabaseJWKSURL:   os.Getenv("SUPABASE_JWKS_URL"),
+		AppEnv:              getEnv("APP_ENV", "local"),
+		HTTPAddr:            getEnv("HTTP_ADDR", ":8080"),
+		DatabaseURL:         os.Getenv("DATABASE_URL"),
+		SupabaseJWTSecret:   os.Getenv("SUPABASE_JWT_SECRET"),
+		SupabaseJWKSURL:     os.Getenv("SUPABASE_JWKS_URL"),
+		TaipeiTravelBaseURL: getEnv("TAIPEI_TRAVEL_BASE_URL", "https://www.travel.taipei/open-api"),
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required")

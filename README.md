@@ -13,7 +13,9 @@
 ## Introduction
 
 Go backend for the travel audio guide system, providing RESTful API for user profile management with
-Supabase Auth JWT verification (ES256/JWKS), built using chi, pgx, sqlc, and Docker.
+Supabase Auth JWT verification (ES256/JWKS), built using chi, pgx, sqlc, and Docker. It also acts as
+a compatibility proxy in front of the Taipei Travel open API, so the Flutter client can move its
+attractions data through this backend without changing its response models.
 
 This project is for learning and technical practice.
 
@@ -29,7 +31,7 @@ the Flutter app:
 The Flutter app provides a cross-platform mobile client built with Flutter, Riverpod, Drift, Clean
 Architecture, and Supabase Auth.
 It handles user authentication via Supabase, retrieves the JWT access token, and calls this Go
-backend API for profile management and user data operations.
+backend API for profile management, user data operations, and attractions data.
 
 ---
 
@@ -50,6 +52,8 @@ backend API for profile management and user data operations.
 - Supabase Auth JWT verification (ES256/JWKS)
 - `GET /api/v1/me` — fetch current user profile, auto-created on first login
 - `PUT /api/v1/me` — partial update profile (only fields passed in are updated)
+- `GET /open-api/{lang}/Attractions/All` — proxy to the Taipei Travel open API, response schema
+  kept fully compatible with the upstream so the Flutter client only needs to change its base URL
 - Swagger UI for interactive API documentation
 
 ---
@@ -81,6 +85,10 @@ backend API for profile management and user data operations.
   `handler` → `service` → `repository`.
   Each layer has a single responsibility — handlers never write SQL, services never touch HTTP,
   repositories never handle JWT.
+- **Anti-Corruption Layer for third-party APIs**
+  `internal/taipeitravel` holds the upstream client and raw DTOs; `internal/attractions` holds the
+  app-facing DTO, mapper, service, and handler. If the upstream schema changes, only the client/DTO/
+  mapper need updating — the contract exposed to Flutter stays stable.
 
 ---
 
@@ -91,6 +99,8 @@ backend API for profile management and user data operations.
 - All SQL `WHERE id = $1` conditions are derived from the JWT — client input is never trusted
 - Supabase uses ES256 (asymmetric signing) — the backend holds only the public key; the private key
   never leaves Supabase
+- `/open-api/*` routes are public tourism data and intentionally do not require authentication;
+  `/api/v1/*` routes always require a valid Supabase JWT
 
 ---
 
@@ -113,13 +123,14 @@ Copy `.env.example` to `.env` and fill in the values:
 cp .env.example .env
 ```
 
-| Variable              | Required                                                       | Description                                                                  | Example                                                                      |
-|-----------------------|----------------------------------------------------------------|------------------------------------------------------------------------------|------------------------------------------------------------------------------|
-| `APP_ENV`             | No                                                             | Application environment, defaults to `local`                                 | `local`                                                                      |
-| `HTTP_ADDR`           | No                                                             | Address/port the HTTP server listens on, defaults to `:8080`                 | `:8080`                                                                      |
-| `DATABASE_URL`        | **Yes**                                                        | PostgreSQL connection string                                                 | `postgres://user:password@localhost:5432/travel_audio_guide?sslmode=disable` |
-| `SUPABASE_JWKS_URL`   | One of `SUPABASE_JWKS_URL` / `SUPABASE_JWT_SECRET` is required | Supabase JWKS endpoint, used for ES256 asymmetric verification (recommended) | `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json`            |
-| `SUPABASE_JWT_SECRET` | Same as above                                                  | Supabase JWT Secret, used for HS256 symmetric verification (fallback)        | `your-supabase-jwt-secret`                                                   |
+| Variable                 | Required                                                        | Description                                                                         | Example                                                                       |
+|--------------------------|------------------------------------------------------------------|--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
+| `APP_ENV`                | No                                                               | Application environment, defaults to `local`                                         | `local`                                                                         |
+| `HTTP_ADDR`               | No                                                               | Address/port the HTTP server listens on, defaults to `:8080`                         | `:8080`                                                                         |
+| `DATABASE_URL`            | **Yes**                                                          | PostgreSQL connection string                                                          | `postgres://user:password@localhost:5432/travel_audio_guide?sslmode=disable`   |
+| `SUPABASE_JWKS_URL`       | One of `SUPABASE_JWKS_URL` / `SUPABASE_JWT_SECRET` is required  | Supabase JWKS endpoint, used for ES256 asymmetric verification (recommended)          | `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json`              |
+| `SUPABASE_JWT_SECRET`     | Same as above                                                    | Supabase JWT Secret, used for HS256 symmetric verification (fallback)                 | `your-supabase-jwt-secret`                                                     |
+| `TAIPEI_TRAVEL_BASE_URL`  | No                                                               | Base URL of the upstream Taipei Travel open API, defaults to the official endpoint    | `https://www.travel.taipei/open-api`                                           |
 
 > You can find `SUPABASE_JWKS_URL` / `SUPABASE_JWT_SECRET` in your Supabase project dashboard under
 **Project Settings → API**.
@@ -189,6 +200,63 @@ http://localhost:<SWAGGER_PORT>
 
 ## API Endpoints
 
+### `GET /open-api/{lang}/Attractions/All`
+
+Compatibility proxy for the [Taipei Travel open API](https://www.travel.taipei/open-api/swagger/docs/V1).
+**No authentication required** — this is public tourism data.
+
+The response schema is kept byte-for-byte compatible with the upstream API (no `success`/`data`
+wrapper), so existing Flutter clients only need to change their base URL — no model changes
+required.
+
+```http
+GET /open-api/zh-tw/Attractions/All?page=1
+```
+
+| Param         | In    | Description                                                       |
+|---------------|-------|---------------------------------------------------------------------|
+| `lang`        | path  | Language code: `zh-tw`, `zh-cn`, `en`, `ja`, `ko`                    |
+| `categoryIds` | query | Comma-separated category IDs to filter by, e.g. `13,15`              |
+| `nlat`        | query | Latitude (WGS84), used for nearby search                             |
+| `elong`       | query | Longitude (WGS84), used for nearby search                            |
+| `page`        | query | Page number, 30 results per page, defaults to `1`                    |
+
+**200 OK**
+
+```json
+{
+  "total": 471,
+  "data": [
+    {
+      "id": 257,
+      "name": "National Taiwan Museum (Natural History Branch)",
+      "nlat": 25.04356,
+      "elong": 121.51436
+    }
+  ]
+}
+```
+
+**502 Bad Gateway** — returned when the upstream Taipei Travel API is unavailable or blocks the
+request:
+
+```json
+{
+  "error": "upstream service unavailable"
+}
+```
+
+> Internally this endpoint calls the upstream API through an anti-corruption layer
+> (`internal/taipeitravel` → `internal/attractions`): a raw upstream DTO is fetched by the client,
+> mapped into an app-facing DTO, and returned unchanged. If the upstream schema changes in the
+> future, only the client/DTO/mapper need updating.
+>
+> The upstream is behind Cloudflare, which blocks requests without a standard browser
+> `User-Agent`. The client always sends one — see `internal/taipeitravel/client.go` if this ever
+> needs adjusting.
+
+---
+
 All `/api/v1/*` routes require an `Authorization: Bearer <token>` header (a Supabase Auth JWT). The
 `user_id` is always derived from the token — it is never accepted as client input.
 
@@ -255,16 +323,16 @@ make test
 ## Useful Make Commands
 
 | Command            | Description                                              |
-|--------------------|----------------------------------------------------------|
-| `make run`         | Run the server locally (requires PostgreSQL running)     |
-| `make build`       | Compile a static binary into `./bin/server`              |
-| `make docker-up`   | Start PostgreSQL, API, and Swagger UI via Docker Compose |
-| `make docker-db`   | Start only PostgreSQL (for local development)            |
-| `make docker-down` | Stop all Docker Compose services                         |
-| `make docker-logs` | Tail API container logs                                  |
-| `make sqlc-gen`    | Regenerate type-safe Go code from SQL (requires `sqlc`)  |
-| `make tidy`        | Run `go mod tidy`                                        |
-| `make test`        | Run all tests                                            |
+|--------------------|------------------------------------------------------------|
+| `make run`         | Run the server locally (requires PostgreSQL running)       |
+| `make build`       | Compile a static binary into `./bin/server`                |
+| `make docker-up`   | Start PostgreSQL, API, and Swagger UI via Docker Compose    |
+| `make docker-db`   | Start only PostgreSQL (for local development)               |
+| `make docker-down` | Stop all Docker Compose services                             |
+| `make docker-logs` | Tail API container logs                                      |
+| `make sqlc-gen`    | Regenerate type-safe Go code from SQL (requires `sqlc`)      |
+| `make tidy`        | Run `go mod tidy`                                             |
+| `make test`        | Run all tests                                                 |
 
 ---
 
@@ -306,6 +374,12 @@ travel-audio-guide-go
 ├─ go.mod
 ├─ go.sum
 ├─ internal
+│  ├─ attractions
+│  │  ├─ dto.go
+│  │  ├─ handler.go
+│  │  ├─ mapper.go
+│  │  ├─ repository.go
+│  │  └─ service.go
 │  ├─ auth
 │  │  ├─ claims.go
 │  │  ├─ context.go
@@ -329,9 +403,12 @@ travel-audio-guide-go
 │  │  ├─ cors.go
 │  │  ├─ logger.go
 │  │  └─ recovery.go
-│  └─ server
-│     ├─ router.go
-│     └─ server.go
+│  ├─ server
+│  │  ├─ router.go
+│  │  └─ server.go
+│  └─ taipeitravel
+│     ├─ client.go
+│     └─ dto.go
 ├─ Makefile
 ├─ pkg
 │  └─ response
