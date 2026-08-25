@@ -148,6 +148,8 @@ Starts PostgreSQL, the Go API, and Swagger UI together:
 make docker-up
 ```
 
+On success, this also prints the ready-to-use Swagger UI and health check URLs.
+
 Check logs:
 
 ```bash
@@ -188,13 +190,14 @@ curl http://localhost:8080/healthz
 The OpenAPI contract lives in [`docs/openapi.yaml`](./docs/openapi.yaml) and is served as an
 interactive Swagger UI via Docker Compose.
 
-After running `make docker-up`, open:
+After running `make docker-up`, the terminal prints the ready URLs, or you can open it directly:
 
 ```
-http://localhost:<SWAGGER_PORT>
+http://localhost:8081/
 ```
 
-> Replace `<SWAGGER_PORT>` with the port mapped to the `swagger-ui` service in `docker-compose.yml`.
+> This matches the port mapped to the `swagger-ui` service in `docker-compose.yml`. If you've
+> changed that port mapping, use your updated port instead.
 
 ---
 

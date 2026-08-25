@@ -19,6 +19,7 @@ info:
     ## Security Design
     - The frontend **does not pass user_id**; the backend automatically obtains it from the JWT `claims.sub`.
     - All user-scoped SQL queries use the user_id parsed from the JWT as a condition.
+    - `/open-api/*` routes are public tourism data and intentionally do not require authentication.
 
 servers:
   - url: http://localhost:8080
@@ -29,9 +30,11 @@ tags:
     description: System status
   - name: Me
     description: Current user profile operations
+  - name: Attractions
+    description: Taipei Travel attractions compatibility proxy
 
 security:
-  - bearerAuth: []
+  - bearerAuth: [ ]
 
 components:
   securitySchemes:
@@ -74,7 +77,7 @@ components:
         preferred_language:
           type: string
           description: "Preferred language"
-          enum: [zh-TW, zh-CN, en, ja]
+          enum: [ zh-TW, zh-CN, en, ja ]
           example: "zh-TW"
         created_at:
           type: string
@@ -109,7 +112,7 @@ components:
         preferred_language:
           type: string
           nullable: true
-          enum: [zh-TW, zh-CN, en, ja]
+          enum: [ zh-TW, zh-CN, en, ja ]
           description: "Preferred language, allowed values: zh-TW / zh-CN / en / ja"
           example: "zh-TW"
       # Note: required is intentionally omitted; all fields are optional
@@ -135,14 +138,201 @@ components:
           description: "Error message"
           example: "missing authorization header"
 
+    # Taipei Travel Attractions compatibility response
+    AttractionsResponse:
+      type: object
+      required:
+        - total
+        - data
+      properties:
+        total:
+          type: integer
+          example: 471
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attraction'
+
+    Attraction:
+      type: object
+      required:
+        - id
+        - name
+        - name_zh
+        - open_status
+        - introduction
+        - open_time
+        - zipcode
+        - distric
+        - address
+        - tel
+        - fax
+        - email
+        - months
+        - nlat
+        - elong
+        - official_site
+        - facebook
+        - ticket
+        - remind
+        - staytime
+        - modified
+        - url
+        - category
+        - target
+        - service
+        - friendly
+        - images
+        - files
+        - links
+      properties:
+        id:
+          type: integer
+          example: 257
+        name:
+          type: string
+          example: "國立臺灣博物館_古生物館"
+        name_zh:
+          type: string
+          nullable: true
+          example: null
+        open_status:
+          type: integer
+          example: 1
+        introduction:
+          type: string
+        open_time:
+          type: string
+        zipcode:
+          type: string
+          example: "100"
+        distric:
+          type: string
+          description: >
+            Upstream field name is intentionally kept as "distric"
+            for compatibility with the Taipei Travel API.
+          example: "中正區"
+        address:
+          type: string
+          example: "100 臺北市中正區襄陽路25號"
+        tel:
+          type: string
+          example: "+886-2-23142699"
+        fax:
+          type: string
+        email:
+          type: string
+        months:
+          type: string
+          example: "01,07,02,08,03,09,04,10,05,11,06,12"
+        nlat:
+          type: number
+          format: double
+          example: 25.04356
+        elong:
+          type: number
+          format: double
+          example: 121.51436
+        official_site:
+          type: string
+        facebook:
+          type: string
+        ticket:
+          type: string
+        remind:
+          type: string
+        staytime:
+          type: string
+        modified:
+          type: string
+          example: "2026-08-21 11:45:57 +08:00"
+        url:
+          type: string
+        category:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttractionTag'
+        target:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttractionTag'
+        service:
+          type: array
+          items: { }
+        friendly:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttractionTag'
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttractionImage'
+        files:
+          type: array
+          items: { }
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttractionLink'
+
+    AttractionTag:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          example: 13
+        name:
+          type: string
+          example: "歷史建築"
+
+    AttractionImage:
+      type: object
+      required:
+        - src
+        - subject
+        - ext
+      properties:
+        src:
+          type: string
+          example: "https://www.travel.taipei/image/65317"
+        subject:
+          type: string
+          example: ""
+        ext:
+          type: string
+          example: ".jpg"
+
+    AttractionLink:
+      type: object
+      required:
+        - src
+        - subject
+      properties:
+        src:
+          type: string
+        subject:
+          type: string
+
+    AttractionsErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: "upstream service unavailable"
+
 paths:
   # Health check
   /healthz:
     get:
-      tags: [System]
+      tags: [ System ]
       summary: Health check
       description: Verify that the server is running normally. No token required.
-      security: []    # Override global security; this endpoint does not require authentication
+      security: [ ]    # Override global security; this endpoint does not require authentication
       responses:
         "200":
           description: Server is healthy
@@ -168,7 +358,7 @@ paths:
   # /api/v1/me
   /api/v1/me:
     get:
-      tags: [Me]
+      tags: [ Me ]
       summary: Get the profile of the currently logged-in user
       description: |
         Retrieve the user_id from the JWT token and query the corresponding profile.
@@ -190,7 +380,7 @@ paths:
         5. If it does not exist, it will be automatically created. `preferred_language` is preset to `zh-TW`.
         6. Return the profile.
       security:
-        - bearerAuth: []
+        - bearerAuth: [ ]
       responses:
         "200":
           description: Successfully obtained (or automatically created) profile
@@ -257,7 +447,7 @@ paths:
                 error: "failed to get profile"
 
     put:
-      tags: [Me]
+      tags: [ Me ]
       summary: Update the current logged-in user's profile
       description: |
         Update the profile data of the currently logged-in user.
@@ -293,7 +483,7 @@ paths:
         | `avatar_url` | Must be a valid URL (https://...) |
         | `preferred_language` | Allowed values only: `zh-TW` `zh-CN` `en` `ja` |
       security:
-        - bearerAuth: []
+        - bearerAuth: [ ]
       requestBody:
         required: true
         content:
@@ -402,3 +592,93 @@ paths:
               example:
                 success: false
                 error: "failed to update profile"
+
+  # Taipei Travel attractions proxy
+  /open-api/{lang}/Attractions/All:
+    get:
+      tags:
+        - Attractions
+      summary: List attractions
+      description: |
+        Compatibility proxy for the Taipei Travel open API.
+
+        No authentication is required because this endpoint serves
+        public tourism data.
+
+        The endpoint, query parameters, JSON field names, field types,
+        and response structure are kept compatible with the upstream API.
+
+        The Go backend internally uses its own DTO and mapper layer,
+        while preserving the contract expected by existing clients.
+      security: [ ]
+      parameters:
+        - name: lang
+          in: path
+          required: true
+          description: Response language
+          schema:
+            type: string
+            enum:
+              - zh-tw
+              - zh-cn
+              - en
+              - ja
+              - ko
+          example: zh-tw
+        - name: categoryIds
+          in: query
+          required: false
+          description: >
+            Comma-separated attraction category IDs.
+            Example: 13,15
+          schema:
+            type: string
+          example: "13"
+        - name: nlat
+          in: query
+          required: false
+          description: Latitude in WGS84 for nearby attraction queries
+          schema:
+            type: number
+            format: double
+          example: 25.04356
+        - name: elong
+          in: query
+          required: false
+          description: Longitude in WGS84 for nearby attraction queries
+          schema:
+            type: number
+            format: double
+          example: 121.51436
+        - name: page
+          in: query
+          required: false
+          description: Page number; upstream returns up to 30 results per page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+      responses:
+        "200":
+          description: Attractions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttractionsResponse'
+        "400":
+          description: Unsupported language
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttractionsErrorResponse'
+              example:
+                error: "unsupported language: xx"
+        "502":
+          description: Taipei Travel upstream API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttractionsErrorResponse'
+              example:
+                error: "upstream service unavailable"
