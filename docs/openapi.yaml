@@ -32,9 +32,11 @@ tags:
     description: Current user profile operations
   - name: Attractions
     description: Taipei Travel attractions compatibility proxy
+  - name: Events
+    description: Taipei Travel events compatibility proxy
 
 security:
-  - bearerAuth: [ ]
+  - bearerAuth: []
 
 components:
   securitySchemes:
@@ -77,7 +79,7 @@ components:
         preferred_language:
           type: string
           description: "Preferred language"
-          enum: [ zh-TW, zh-CN, en, ja ]
+          enum: [zh-TW, zh-CN, en, ja]
           example: "zh-TW"
         created_at:
           type: string
@@ -112,7 +114,7 @@ components:
         preferred_language:
           type: string
           nullable: true
-          enum: [ zh-TW, zh-CN, en, ja ]
+          enum: [zh-TW, zh-CN, en, ja]
           description: "Preferred language, allowed values: zh-TW / zh-CN / en / ja"
           example: "zh-TW"
       # Note: required is intentionally omitted; all fields are optional
@@ -258,7 +260,7 @@ components:
             $ref: '#/components/schemas/AttractionTag'
         service:
           type: array
-          items: { }
+          items: {}
         friendly:
           type: array
           items:
@@ -269,7 +271,7 @@ components:
             $ref: '#/components/schemas/AttractionImage'
         files:
           type: array
-          items: { }
+          items: {}
         links:
           type: array
           items:
@@ -325,14 +327,304 @@ components:
           type: string
           example: "upstream service unavailable"
 
+    # Taipei Travel Events compatibility responses
+    NewsResponse:
+      type: object
+      required:
+        - total
+        - data
+      properties:
+        total:
+          type: integer
+          example: 35
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/News'
+
+    News:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - begin
+        - end
+        - posted
+        - modified
+        - url
+        - files
+        - links
+      properties:
+        id:
+          type: integer
+          example: 45417
+        title:
+          type: string
+          example: "水門何時關？北市府設多管道　民眾防汛資訊不漏接"
+        description:
+          type: string
+        begin:
+          type: string
+          nullable: true
+          example: null
+        end:
+          type: string
+          nullable: true
+          example: null
+        posted:
+          type: string
+          example: "2023-04-04 09:06:00 +08:00"
+        modified:
+          type: string
+          example: "2023-04-10 10:21:08 +08:00"
+        url:
+          type: string
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventFile'
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventLink'
+
+    ActivityResponse:
+      type: object
+      required:
+        - total
+        - data
+      properties:
+        total:
+          type: integer
+          example: 24
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Activity'
+
+    Activity:
+      type: object
+      required:
+        - distric
+        - address
+        - nlat
+        - elong
+        - organizer
+        - co_rganizer
+        - contact
+        - tel
+        - fax
+        - ticket
+        - traffic
+        - parking
+        - id
+        - title
+        - description
+        - begin
+        - end
+        - posted
+        - modified
+        - url
+        - files
+        - links
+      properties:
+        distric:
+          type: string
+          example: ""
+        address:
+          type: string
+          example: ""
+        nlat:
+          type: string
+          description: >
+            Unlike Attractions, the upstream Events/Activity API returns
+            this coordinate as a string rather than a number.
+          example: "25.0346"
+        elong:
+          type: string
+          example: "121.522"
+        organizer:
+          type: string
+          example: "吳偉谷"
+        co_rganizer:
+          type: string
+          description: >
+            Upstream field name is intentionally kept as "co_rganizer"
+            for compatibility with the Taipei Travel API.
+          example: ""
+        contact:
+          type: string
+        tel:
+          type: string
+        fax:
+          type: string
+        ticket:
+          type: string
+        traffic:
+          type: string
+        parking:
+          type: string
+        id:
+          type: integer
+          example: 67755
+        title:
+          type: string
+          example: "存在的輕聲 ─ 對話 吳偉谷陶塑個展"
+        description:
+          type: string
+        begin:
+          type: string
+          nullable: true
+          example: "2026-08-19 00:00:00 +08:00"
+        end:
+          type: string
+          nullable: true
+          example: "2026-08-30 23:59:59 +08:00"
+        posted:
+          type: string
+        modified:
+          type: string
+        url:
+          type: string
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventFile'
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventLink'
+
+    CalendarResponse:
+      type: object
+      required:
+        - total
+        - data
+      properties:
+        total:
+          type: integer
+          example: 23
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Calendar'
+
+    Calendar:
+      type: object
+      required:
+        - distric
+        - address
+        - nlat
+        - elong
+        - tel
+        - fax
+        - ticket
+        - traffic
+        - parking
+        - is_major
+        - id
+        - title
+        - description
+        - begin
+        - end
+        - posted
+        - modified
+        - url
+        - files
+        - links
+      properties:
+        distric:
+          type: string
+          example: ""
+        address:
+          type: string
+          example: ""
+        nlat:
+          type: string
+          example: "25.0886"
+        elong:
+          type: string
+          example: "121.524"
+        tel:
+          type: string
+        fax:
+          type: string
+        ticket:
+          type: string
+        traffic:
+          type: string
+        parking:
+          type: string
+        is_major:
+          type: boolean
+          example: false
+        id:
+          type: integer
+          example: 66376
+        title:
+          type: string
+          example: "2026臺北夜市打牙祭"
+        description:
+          type: string
+        begin:
+          type: string
+          nullable: true
+          example: "2026-05-14 00:00:00 +08:00"
+        end:
+          type: string
+          nullable: true
+          example: "2026-10-31 23:59:59 +08:00"
+        posted:
+          type: string
+        modified:
+          type: string
+        url:
+          type: string
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventFile'
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventLink'
+
+    EventFile:
+      type: object
+      properties:
+        src:
+          type: string
+        subject:
+          type: string
+        ext:
+          type: string
+
+    EventLink:
+      type: object
+      properties:
+        src:
+          type: string
+        subject:
+          type: string
+
+    EventsErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: "upstream service unavailable"
+
 paths:
   # Health check
   /healthz:
     get:
-      tags: [ System ]
+      tags: [System]
       summary: Health check
       description: Verify that the server is running normally. No token required.
-      security: [ ]    # Override global security; this endpoint does not require authentication
+      security: []    # Override global security; this endpoint does not require authentication
       responses:
         "200":
           description: Server is healthy
@@ -358,7 +650,7 @@ paths:
   # /api/v1/me
   /api/v1/me:
     get:
-      tags: [ Me ]
+      tags: [Me]
       summary: Get the profile of the currently logged-in user
       description: |
         Retrieve the user_id from the JWT token and query the corresponding profile.
@@ -380,7 +672,7 @@ paths:
         5. If it does not exist, it will be automatically created. `preferred_language` is preset to `zh-TW`.
         6. Return the profile.
       security:
-        - bearerAuth: [ ]
+        - bearerAuth: []
       responses:
         "200":
           description: Successfully obtained (or automatically created) profile
@@ -447,7 +739,7 @@ paths:
                 error: "failed to get profile"
 
     put:
-      tags: [ Me ]
+      tags: [Me]
       summary: Update the current logged-in user's profile
       description: |
         Update the profile data of the currently logged-in user.
@@ -483,7 +775,7 @@ paths:
         | `avatar_url` | Must be a valid URL (https://...) |
         | `preferred_language` | Allowed values only: `zh-TW` `zh-CN` `en` `ja` |
       security:
-        - bearerAuth: [ ]
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -610,7 +902,7 @@ paths:
 
         The Go backend internally uses its own DTO and mapper layer,
         while preserving the contract expected by existing clients.
-      security: [ ]
+      security: []
       parameters:
         - name: lang
           in: path
@@ -680,5 +972,237 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttractionsErrorResponse'
+              example:
+                error: "upstream service unavailable"
+
+  # Taipei Travel events proxy
+  /open-api/{lang}/Events/News:
+    get:
+      tags:
+        - Events
+      summary: List tourism news
+      description: |
+        Compatibility proxy for the Taipei Travel Events/News open API.
+
+        No authentication is required because this endpoint serves
+        public tourism news.
+      security: []
+      parameters:
+        - name: lang
+          in: path
+          required: true
+          description: Response language
+          schema:
+            type: string
+            enum:
+              - zh-tw
+              - zh-cn
+              - en
+              - ja
+              - ko
+          example: zh-tw
+        - name: begin
+          in: query
+          required: false
+          description: Start date, format yyyy-MM-dd
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          required: false
+          description: End date, format yyyy-MM-dd
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          required: false
+          description: Page number; upstream returns up to 30 results per page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+      responses:
+        "200":
+          description: News retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsResponse'
+        "400":
+          description: Unsupported language
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsErrorResponse'
+              example:
+                error: "unsupported language: xx"
+        "502":
+          description: Taipei Travel upstream API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsErrorResponse'
+              example:
+                error: "upstream service unavailable"
+
+  /open-api/{lang}/Events/Activity:
+    get:
+      tags:
+        - Events
+      summary: List activities and exhibitions
+      description: |
+        Compatibility proxy for the Taipei Travel Events/Activity open API.
+
+        No authentication is required because this endpoint serves
+        public tourism activity data.
+
+        Note that `nlat` and `elong` in the response are returned as strings
+        by the upstream API, unlike the Attractions endpoint where they are numbers.
+      security: []
+      parameters:
+        - name: lang
+          in: path
+          required: true
+          description: Response language
+          schema:
+            type: string
+            enum:
+              - zh-tw
+              - zh-cn
+              - en
+              - ja
+              - ko
+              - es
+              - id
+              - th
+              - vi
+          example: zh-tw
+        - name: begin
+          in: query
+          required: false
+          description: Start date, format yyyy-MM-dd
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          required: false
+          description: End date, format yyyy-MM-dd
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          required: false
+          description: Page number; upstream returns up to 30 results per page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+      responses:
+        "200":
+          description: Activities retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+        "400":
+          description: Unsupported language
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsErrorResponse'
+              example:
+                error: "unsupported language: xx"
+        "502":
+          description: Taipei Travel upstream API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsErrorResponse'
+              example:
+                error: "upstream service unavailable"
+
+  /open-api/{lang}/Events/Calendar:
+    get:
+      tags:
+        - Events
+      summary: List event calendar entries
+      description: |
+        Compatibility proxy for the Taipei Travel Events/Calendar open API.
+
+        No authentication is required because this endpoint serves
+        public tourism event calendar data.
+
+        Only three languages are supported by the upstream API for this
+        endpoint: zh-tw, zh-cn, en.
+      security: []
+      parameters:
+        - name: lang
+          in: path
+          required: true
+          description: Response language
+          schema:
+            type: string
+            enum:
+              - zh-tw
+              - zh-cn
+              - en
+          example: zh-tw
+        - name: categoryId
+          in: query
+          required: false
+          description: Category ID
+          schema:
+            type: integer
+            format: int64
+        - name: begin
+          in: query
+          required: false
+          description: Start date, format yyyy-MM-dd
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          required: false
+          description: End date, format yyyy-MM-dd
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          required: false
+          description: Page number; upstream returns up to 30 results per page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+      responses:
+        "200":
+          description: Calendar entries retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarResponse'
+        "400":
+          description: Unsupported language
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsErrorResponse'
+              example:
+                error: "unsupported language: xx"
+        "502":
+          description: Taipei Travel upstream API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventsErrorResponse'
               example:
                 error: "upstream service unavailable"

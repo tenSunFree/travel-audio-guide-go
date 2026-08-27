@@ -24,37 +24,63 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
-// rawQuery comes directly from r.URL.RawQuery and is forwarded to the third party unchanged.
-// This keeps the client unchanged if the third party adds new query parameters later.
-func (c *Client) GetAttractions(ctx context.Context, lang string, rawQuery string) (AttractionsResponseDTO, error) {
-	endpoint := fmt.Sprintf("%s/%s/Attractions/All", c.baseURL, url.PathEscape(lang))
+// getJSON is the shared request path for every Taipei Travel endpoint:
+// build URL, send request with the required headers, decode JSON into target.
+func (c *Client) getJSON(ctx context.Context, path string, rawQuery string, target any) error {
+	endpoint := c.baseURL + "/" + strings.TrimLeft(path, "/")
 	if rawQuery != "" {
 		endpoint += "?" + rawQuery
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return AttractionsResponseDTO{}, fmt.Errorf("create request: %w", err)
+		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
-	// Cloudflare will block requests without a standard browser User-Agent (responding with a 403 error),
-	// Therefore, a valid browser User-Agent is required to retrieve data correctly.
+	// Cloudflare blocks requests without a standard browser User-Agent (403).
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 	req.Header.Set("Accept-Language", "zh-TW,zh;q=0.9,en;q=0.8")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return AttractionsResponseDTO{}, fmt.Errorf("request taipei travel: %w", err)
+		return fmt.Errorf("request taipei travel: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return AttractionsResponseDTO{}, fmt.Errorf("taipei travel returned status %d", resp.StatusCode)
+		return fmt.Errorf("taipei travel returned status %d", resp.StatusCode)
 	}
 
-	var result AttractionsResponseDTO
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return AttractionsResponseDTO{}, fmt.Errorf("decode taipei travel response: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(target); err != nil {
+		return fmt.Errorf("decode taipei travel response: %w", err)
 	}
-	return result, nil
+	return nil
+}
+
+func (c *Client) GetAttractions(ctx context.Context, lang string, rawQuery string) (AttractionsResponseDTO, error) {
+	var result AttractionsResponseDTO
+	path := fmt.Sprintf("%s/Attractions/All", url.PathEscape(lang))
+	err := c.getJSON(ctx, path, rawQuery, &result)
+	return result, err
+}
+
+func (c *Client) GetEventsNews(ctx context.Context, lang string, rawQuery string) (NewsResponseDTO, error) {
+	var result NewsResponseDTO
+	path := fmt.Sprintf("%s/Events/News", url.PathEscape(lang))
+	err := c.getJSON(ctx, path, rawQuery, &result)
+	return result, err
+}
+
+func (c *Client) GetEventsActivity(ctx context.Context, lang string, rawQuery string) (ActivityResponseDTO, error) {
+	var result ActivityResponseDTO
+	path := fmt.Sprintf("%s/Events/Activity", url.PathEscape(lang))
+	err := c.getJSON(ctx, path, rawQuery, &result)
+	return result, err
+}
+
+func (c *Client) GetEventsCalendar(ctx context.Context, lang string, rawQuery string) (CalendarResponseDTO, error) {
+	var result CalendarResponseDTO
+	path := fmt.Sprintf("%s/Events/Calendar", url.PathEscape(lang))
+	err := c.getJSON(ctx, path, rawQuery, &result)
+	return result, err
 }

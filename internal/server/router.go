@@ -9,12 +9,13 @@ import (
 
 	"github.com/tenSunFree/travel-audio-guide-go/internal/attractions"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/auth"
+	"github.com/tenSunFree/travel-audio-guide-go/internal/events"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/me"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/middleware"
 	"github.com/tenSunFree/travel-audio-guide-go/pkg/response"
 )
 
-func NewRouter(log *slog.Logger, verifier *auth.JWTVerifier, meHandler *me.Handler, attractionsHandler *attractions.Handler) *chi.Mux {
+func NewRouter(log *slog.Logger, verifier *auth.JWTVerifier, meHandler *me.Handler, attractionsHandler *attractions.Handler, eventsHandler *events.Handler) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Recovery(log))
@@ -29,6 +30,9 @@ func NewRouter(log *slog.Logger, verifier *auth.JWTVerifier, meHandler *me.Handl
 	// Third-party compatible proxy; no Supabase JWT required
 	r.Route("/open-api", func(r chi.Router) {
 		r.Get("/{lang}/Attractions/All", attractionsHandler.GetAll)
+		r.Get("/{lang}/Events/News", eventsHandler.GetNews)
+		r.Get("/{lang}/Events/Activity", eventsHandler.GetActivity)
+		r.Get("/{lang}/Events/Calendar", eventsHandler.GetCalendar)
 	})
 
 	// Own domain API; Supabase JWT required

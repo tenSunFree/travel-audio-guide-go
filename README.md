@@ -15,7 +15,7 @@
 Go backend for the travel audio guide system, providing RESTful API for user profile management with
 Supabase Auth JWT verification (ES256/JWKS), built using chi, pgx, sqlc, and Docker. It also acts as
 a compatibility proxy in front of the Taipei Travel open API, so the Flutter client can move its
-attractions data through this backend without changing its response models.
+attractions and events data through this backend without changing its response models.
 
 This project is for learning and technical practice.
 
@@ -31,7 +31,8 @@ the Flutter app:
 The Flutter app provides a cross-platform mobile client built with Flutter, Riverpod, Drift, Clean
 Architecture, and Supabase Auth.
 It handles user authentication via Supabase, retrieves the JWT access token, and calls this Go
-backend API for profile management, user data operations, and attractions data.
+backend API for profile management, user data operations, and Taipei Travel data (attractions,
+news, activities, and event calendar).
 
 ---
 
@@ -55,6 +56,9 @@ backend API for profile management, user data operations, and attractions data.
 - `GET /open-api/{lang}/Attractions/All` — proxy to the Taipei Travel open API, response schema
   kept compatible with the upstream for the documented fields and JSON types, so the Flutter
   client only needs to change its base URL
+- `GET /open-api/{lang}/Events/News` — proxy for Taipei Travel tourism news
+- `GET /open-api/{lang}/Events/Activity` — proxy for Taipei Travel activities and exhibitions
+- `GET /open-api/{lang}/Events/Calendar` — proxy for Taipei Travel event calendar entries
 - Swagger UI for interactive API documentation
 
 ---
@@ -87,7 +91,8 @@ backend API for profile management, user data operations, and attractions data.
   Each layer has a single responsibility — handlers never write SQL, services never touch HTTP,
   repositories never handle JWT.
 - **Anti-Corruption Layer for third-party APIs**
-  `internal/taipeitravel` holds the upstream client and raw DTOs; `internal/attractions` holds the
+  `internal/taipeitravel` holds a single shared HTTP client (`getJSON`) plus the upstream raw DTOs
+  for every Taipei Travel endpoint; `internal/attractions` and `internal/events` each hold their own
   app-facing DTO, mapper, service, and handler. If the upstream schema changes, only the client/DTO/
   mapper need updating — the contract exposed to Flutter stays stable.
 
@@ -209,9 +214,9 @@ http://localhost:8081/
 Compatibility proxy for the [Taipei Travel open API](https://www.travel.taipei/open-api/swagger/docs/V1).
 **No authentication required** — this is public tourism data.
 
-The response schema is kept byte-for-byte compatible with the upstream API (no `success`/`data`
-wrapper), so existing Flutter clients only need to change their base URL — no model changes
-required.
+The response schema and client-facing contract are kept compatible with the upstream API (no
+`success`/`data` wrapper), so existing Flutter clients only need to change their base URL — no
+model changes required.
 
 ```http
 GET /open-api/zh-tw/Attractions/All?page=1
@@ -258,6 +263,120 @@ request:
 > The upstream is behind Cloudflare, which blocks requests without a standard browser
 > `User-Agent`. The client always sends one — see `internal/taipeitravel/client.go` if this ever
 > needs adjusting.
+
+---
+
+### `GET /open-api/{lang}/Events/News`
+
+Compatibility proxy for Taipei Travel tourism news. **No authentication required.**
+
+```http
+GET /open-api/zh-tw/Events/News?page=1
+```
+
+| Param   | In    | Description                                        |
+|---------|-------|-----------------------------------------------------|
+| `lang`  | path  | Language code: `zh-tw`, `zh-cn`, `en`, `ja`, `ko`    |
+| `begin` | query | Start date, format `yyyy-MM-dd`                      |
+| `end`   | query | End date, format `yyyy-MM-dd`                        |
+| `page`  | query | Page number, 30 results per page, defaults to `1`    |
+
+**200 OK**
+
+```json
+{
+  "total": 35,
+  "data": [
+    {
+      "id": 45417,
+      "title": "水門何時關？北市府設多管道　民眾防汛資訊不漏接",
+      "begin": null,
+      "end": null,
+      "posted": "2023-04-04 09:06:00 +08:00"
+    }
+  ]
+}
+```
+
+> `begin` and `end` are nullable and stay `null` when the upstream does not provide a date range —
+> they are never coerced into empty strings.
+
+---
+
+### `GET /open-api/{lang}/Events/Activity`
+
+Compatibility proxy for Taipei Travel activities and exhibitions. **No authentication required.**
+
+```http
+GET /open-api/zh-tw/Events/Activity?page=1
+```
+
+| Param   | In    | Description                                                                         |
+|---------|-------|---------------------------------------------------------------------------------------|
+| `lang`  | path  | Language code: `zh-tw`, `zh-cn`, `en`, `ja`, `ko`, `es`, `id`, `th`, `vi`               |
+| `begin` | query | Start date, format `yyyy-MM-dd`                                                        |
+| `end`   | query | End date, format `yyyy-MM-dd`                                                          |
+| `page`  | query | Page number, 30 results per page, defaults to `1`                                      |
+
+**200 OK**
+
+```json
+{
+  "total": 24,
+  "data": [
+    {
+      "id": 67755,
+      "title": "存在的輕聲 ─ 對話 吳偉谷陶塑個展",
+      "distric": "",
+      "nlat": "25.0346",
+      "elong": "121.522",
+      "co_rganizer": ""
+    }
+  ]
+}
+```
+
+> **Type note:** unlike Attractions, `nlat` and `elong` here are returned as **strings** by the
+> upstream API, not numbers — this is preserved as-is. The upstream field is also spelled
+> `co_rganizer` (not `co_organizer`); this is kept unchanged for compatibility.
+
+---
+
+### `GET /open-api/{lang}/Events/Calendar`
+
+Compatibility proxy for the Taipei Travel event calendar. **No authentication required.**
+
+```http
+GET /open-api/zh-tw/Events/Calendar?page=1
+```
+
+| Param        | In    | Description                                        |
+|--------------|-------|-----------------------------------------------------|
+| `lang`       | path  | Language code: `zh-tw`, `zh-cn`, `en` (only three)   |
+| `categoryId` | query | Category ID                                          |
+| `begin`      | query | Start date, format `yyyy-MM-dd`                      |
+| `end`        | query | End date, format `yyyy-MM-dd`                        |
+| `page`       | query | Page number, 30 results per page, defaults to `1`    |
+
+**200 OK**
+
+```json
+{
+  "total": 23,
+  "data": [
+    {
+      "id": 66376,
+      "title": "2026臺北夜市打牙祭",
+      "nlat": "25.0886",
+      "elong": "121.524",
+      "is_major": false
+    }
+  ]
+}
+```
+
+> This endpoint only supports three languages (`zh-tw`, `zh-cn`, `en`) — a wider language code such
+> as `ja` or `ko` returns `400`, even though those are valid for Attractions and Events/Activity.
 
 ---
 
@@ -396,6 +515,12 @@ travel-audio-guide-go
 │  │  ├─ db.go
 │  │  ├─ models.go
 │  │  └─ profiles.sql.go
+│  ├─ events
+│  │  ├─ dto.go
+│  │  ├─ handler.go
+│  │  ├─ mapper.go
+│  │  ├─ repository.go
+│  │  └─ service.go
 │  ├─ me
 │  │  ├─ dto.go
 │  │  ├─ handler.go
