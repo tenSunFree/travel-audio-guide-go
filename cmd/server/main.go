@@ -11,12 +11,14 @@ import (
 
 	"github.com/joho/godotenv"
 
+	"github.com/tenSunFree/travel-audio-guide-go/internal/attractions"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/auth"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/config"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/database"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/db"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/me"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/server"
+	"github.com/tenSunFree/travel-audio-guide-go/internal/taipeitravel"
 )
 
 func main() {
@@ -43,6 +45,11 @@ func main() {
 	meService := me.NewService(meRepo)
 	meHandler := me.NewHandler(meService)
 
+	taipeiTravelClient := taipeitravel.NewClient(cfg.TaipeiTravelBaseURL)
+	attractionsRepo := attractions.NewRepository(taipeiTravelClient)
+	attractionsService := attractions.NewService(attractionsRepo)
+	attractionsHandler := attractions.NewHandler(attractionsService, log)
+
 	var verifier *auth.JWTVerifier
 	if cfg.SupabaseJWKSURL != "" {
 		verifier, err = auth.NewJWTVerifierFromJWKS(cfg.SupabaseJWKSURL)
@@ -56,7 +63,7 @@ func main() {
 		log.Info("jwt verifier ready", "mode", "HS256/Secret")
 	}
 
-	router := server.NewRouter(log, verifier, meHandler)
+	router := server.NewRouter(log, verifier, meHandler, attractionsHandler)
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           router,

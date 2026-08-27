@@ -7,13 +7,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
+	"github.com/tenSunFree/travel-audio-guide-go/internal/attractions"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/auth"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/me"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/middleware"
 	"github.com/tenSunFree/travel-audio-guide-go/pkg/response"
 )
 
-func NewRouter(log *slog.Logger, verifier *auth.JWTVerifier, meHandler *me.Handler) *chi.Mux {
+func NewRouter(log *slog.Logger, verifier *auth.JWTVerifier, meHandler *me.Handler, attractionsHandler *attractions.Handler) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Recovery(log))
@@ -25,6 +26,12 @@ func NewRouter(log *slog.Logger, verifier *auth.JWTVerifier, meHandler *me.Handl
 		response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	// Third-party compatible proxy; no Supabase JWT required
+	r.Route("/open-api", func(r chi.Router) {
+		r.Get("/{lang}/Attractions/All", attractionsHandler.GetAll)
+	})
+
+	// Own domain API; Supabase JWT required
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(middleware.Auth(verifier))
 		r.Get("/me", meHandler.GetMe)
