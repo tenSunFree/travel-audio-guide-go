@@ -53,7 +53,8 @@ backend API for profile management, user data operations, and attractions data.
 - `GET /api/v1/me` — fetch current user profile, auto-created on first login
 - `PUT /api/v1/me` — partial update profile (only fields passed in are updated)
 - `GET /open-api/{lang}/Attractions/All` — proxy to the Taipei Travel open API, response schema
-  kept fully compatible with the upstream so the Flutter client only needs to change its base URL
+  kept compatible with the upstream for the documented fields and JSON types, so the Flutter
+  client only needs to change its base URL
 - Swagger UI for interactive API documentation
 
 ---
@@ -192,7 +193,7 @@ interactive Swagger UI via Docker Compose.
 
 After running `make docker-up`, the terminal prints the ready URLs, or you can open it directly:
 
-```
+```text
 http://localhost:8081/
 ```
 

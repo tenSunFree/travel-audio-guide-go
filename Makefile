@@ -12,7 +12,7 @@ build:
 docker-up:
 	docker compose up --build -d
 	@echo ""
-	@echo "Services are ready:"
+	@echo "Services started:"
 	@echo "  Swagger UI: http://localhost:8081/"
 	@echo "  API Health: http://localhost:8080/healthz"
 
