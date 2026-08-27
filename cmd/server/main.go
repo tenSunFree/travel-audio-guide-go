@@ -16,6 +16,7 @@ import (
 	"github.com/tenSunFree/travel-audio-guide-go/internal/config"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/database"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/db"
+	"github.com/tenSunFree/travel-audio-guide-go/internal/events"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/me"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/server"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/taipeitravel"
@@ -46,9 +47,14 @@ func main() {
 	meHandler := me.NewHandler(meService)
 
 	taipeiTravelClient := taipeitravel.NewClient(cfg.TaipeiTravelBaseURL)
+
 	attractionsRepo := attractions.NewRepository(taipeiTravelClient)
 	attractionsService := attractions.NewService(attractionsRepo)
 	attractionsHandler := attractions.NewHandler(attractionsService, log)
+
+	eventsRepo := events.NewRepository(taipeiTravelClient)
+	eventsService := events.NewService(eventsRepo)
+	eventsHandler := events.NewHandler(eventsService, log)
 
 	var verifier *auth.JWTVerifier
 	if cfg.SupabaseJWKSURL != "" {
@@ -63,7 +69,7 @@ func main() {
 		log.Info("jwt verifier ready", "mode", "HS256/Secret")
 	}
 
-	router := server.NewRouter(log, verifier, meHandler, attractionsHandler)
+	router := server.NewRouter(log, verifier, meHandler, attractionsHandler, eventsHandler)
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           router,
