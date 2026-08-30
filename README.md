@@ -15,7 +15,8 @@
 Go backend for the travel audio guide system, providing RESTful API for user profile management with
 Supabase Auth JWT verification (ES256/JWKS), built using chi, pgx, sqlc, and Docker. It also acts as
 a compatibility proxy in front of the Taipei Travel open API, so the Flutter client can move its
-attractions and events data through this backend without changing its response models.
+attractions, events, media, tours, and category data through this backend without changing its
+response models.
 
 This project is for learning and technical practice.
 
@@ -32,7 +33,7 @@ The Flutter app provides a cross-platform mobile client built with Flutter, Rive
 Architecture, and Supabase Auth.
 It handles user authentication via Supabase, retrieves the JWT access token, and calls this Go
 backend API for profile management, user data operations, and Taipei Travel data (attractions,
-news, activities, and event calendar).
+news, activities, event calendar, audio guides, themed tours, and category lookups).
 
 ---
 
@@ -59,6 +60,9 @@ news, activities, and event calendar).
 - `GET /open-api/{lang}/Events/News` — proxy for Taipei Travel tourism news
 - `GET /open-api/{lang}/Events/Activity` — proxy for Taipei Travel activities and exhibitions
 - `GET /open-api/{lang}/Events/Calendar` — proxy for Taipei Travel event calendar entries
+- `GET /open-api/{lang}/Media/Audio` — proxy for Taipei Travel audio guide entries
+- `GET /open-api/{lang}/Tours/Theme` — proxy for Taipei Travel themed tours
+- `GET /open-api/{lang}/Miscellaneous/Categories` — proxy for category lookups by resource type
 - Swagger UI for interactive API documentation
 
 ---
@@ -92,9 +96,10 @@ news, activities, and event calendar).
   repositories never handle JWT.
 - **Anti-Corruption Layer for third-party APIs**
   `internal/taipeitravel` holds a single shared HTTP client (`getJSON`) plus the upstream raw DTOs
-  for every Taipei Travel endpoint; `internal/attractions` and `internal/events` each hold their own
-  app-facing DTO, mapper, service, and handler. If the upstream schema changes, only the client/DTO/
-  mapper need updating — the contract exposed to Flutter stays stable.
+  for every Taipei Travel endpoint; `internal/attractions`, `internal/events`, `internal/media`,
+  `internal/tours`, and `internal/miscellaneous` each hold their own app-facing DTO, mapper,
+  service, and handler. If the upstream schema changes, only the client/DTO/mapper need updating
+  — the contract exposed to Flutter stays stable.
 
 ---
 
@@ -380,6 +385,122 @@ GET /open-api/zh-tw/Events/Calendar?page=1
 
 ---
 
+### `GET /open-api/{lang}/Media/Audio`
+
+Compatibility proxy for Taipei Travel audio guide entries. **No authentication required.**
+
+```http
+GET /open-api/zh-tw/Media/Audio?page=1
+```
+
+| Param  | In    | Description                                        |
+|--------|-------|-----------------------------------------------------|
+| `lang` | path  | Language code: `zh-tw`, `zh-cn`, `en`, `ja`, `ko`    |
+| `page` | query | Page number, 30 results per page, defaults to `1`    |
+
+**200 OK**
+
+```json
+{
+  "total": 140,
+  "data": [
+    {
+      "id": 28,
+      "title": "北投圖書館",
+      "summary": null,
+      "url": "https://www.travel.taipei/audio/28",
+      "file_ext": null,
+      "modified": "2025-12-10 15:55:41 +08:00"
+    }
+  ]
+}
+```
+
+---
+
+### `GET /open-api/{lang}/Tours/Theme`
+
+Compatibility proxy for Taipei Travel themed tours. **No authentication required.**
+
+```http
+GET /open-api/zh-tw/Tours/Theme?categoryIds=532&page=1
+```
+
+| Param         | In    | Description                                                                         |
+|---------------|-------|---------------------------------------------------------------------------------------|
+| `lang`        | path  | Language code: `zh-tw`, `zh-cn`, `en`, `ja`, `ko`                                       |
+| `categoryIds` | query | Comma-separated category IDs, e.g. `532,228`. Look these up via `Miscellaneous/Categories?type=Tours` |
+| `page`        | query | Page number, 30 results per page, defaults to `1`                                      |
+
+**200 OK**
+
+```json
+{
+  "total": 87,
+  "data": [
+    {
+      "id": 1409,
+      "seasons": ["1", "2", "3", "4"],
+      "months": ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"],
+      "days": 1,
+      "title": "鐵道觀光主題遊程",
+      "category": null,
+      "transport": null,
+      "users": null
+    }
+  ]
+}
+```
+
+> **Schema note:** `category`, `transport`, and `users` are always `null` in every observed
+> sample. Their non-null shape is undocumented by the upstream, so these fields are passed
+> through as-is (`json.RawMessage` on the Go side) rather than guessed at.
+
+---
+
+### `GET /open-api/{lang}/Miscellaneous/Categories`
+
+Compatibility proxy for category lookups by resource type. **No authentication required.**
+Unlike other proxy endpoints, the `type` query parameter is **required**; this backend validates
+it before forwarding the request upstream.
+
+```http
+GET /open-api/zh-tw/Miscellaneous/Categories?type=Tours
+```
+
+| Param  | In    | Description                                                                                    |
+|--------|-------|--------------------------------------------------------------------------------------------------|
+| `lang` | path  | Language code: `zh-tw`, `zh-cn`, `en`, `ja`, `ko`                                                  |
+| `type` | query | **Required.** One of `Activity`, `Calendar`, `Pictorial`, `Attractions`, `Accommodation`, `Tours` |
+
+**200 OK**
+
+```json
+{
+  "total": 20,
+  "data": {
+    "Category": [
+      { "id": 532, "name": "樂遊臺北" },
+      { "id": 228, "name": "經典遊程" }
+    ]
+  }
+}
+```
+
+**400 Bad Request** — returned when `type` is missing or not one of the allowed values:
+
+```json
+{
+  "error": "invalid parameter: type ()"
+}
+```
+
+> **Schema note:** the `Category` wrapper key inside `data` has only been confirmed for
+> `type=Tours`. If other `type` values turn out to use a different key, the DTO will need
+> per-type handling — see `internal/taipeitravel/dto.go`.
+
+---
+
 All `/api/v1/*` routes require an `Authorization: Bearer <token>` header (a Supabase Auth JWT). The
 `user_id` is always derived from the token — it is never accepted as client input.
 
@@ -521,6 +642,12 @@ travel-audio-guide-go
 │  │  ├─ mapper.go
 │  │  ├─ repository.go
 │  │  └─ service.go
+│  ├─ media
+│  │  ├─ dto.go
+│  │  ├─ handler.go
+│  │  ├─ mapper.go
+│  │  ├─ repository.go
+│  │  └─ service.go
 │  ├─ me
 │  │  ├─ dto.go
 │  │  ├─ handler.go
@@ -532,12 +659,24 @@ travel-audio-guide-go
 │  │  ├─ cors.go
 │  │  ├─ logger.go
 │  │  └─ recovery.go
+│  ├─ miscellaneous
+│  │  ├─ dto.go
+│  │  ├─ handler.go
+│  │  ├─ mapper.go
+│  │  ├─ repository.go
+│  │  └─ service.go
 │  ├─ server
 │  │  ├─ router.go
 │  │  └─ server.go
-│  └─ taipeitravel
-│     ├─ client.go
-│     └─ dto.go
+│  ├─ taipeitravel
+│  │  ├─ client.go
+│  │  └─ dto.go
+│  └─ tours
+│     ├─ dto.go
+│     ├─ handler.go
+│     ├─ mapper.go
+│     ├─ repository.go
+│     └─ service.go
 ├─ Makefile
 ├─ pkg
 │  └─ response

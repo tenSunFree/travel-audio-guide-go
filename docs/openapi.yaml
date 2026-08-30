@@ -34,6 +34,12 @@ tags:
     description: Taipei Travel attractions compatibility proxy
   - name: Events
     description: Taipei Travel events compatibility proxy
+  - name: Media
+    description: Taipei Travel media (audio guide) compatibility proxy
+  - name: Tours
+    description: Taipei Travel themed tour compatibility proxy
+  - name: Miscellaneous
+    description: Taipei Travel miscellaneous compatibility proxy (e.g. category lookups)
 
 security:
   - bearerAuth: []
@@ -616,6 +622,213 @@ components:
         error:
           type: string
           example: "upstream service unavailable"
+
+    # Taipei Travel Media compatibility response
+    AudioResponse:
+      type: object
+      required:
+        - total
+        - data
+      properties:
+        total:
+          type: integer
+          example: 140
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Audio'
+
+    Audio:
+      type: object
+      required:
+        - id
+        - title
+        - summary
+        - url
+        - file_ext
+        - modified
+      properties:
+        id:
+          type: integer
+          example: 28
+        title:
+          type: string
+          example: "北投圖書館"
+        summary:
+          type: string
+          nullable: true
+          example: null
+        url:
+          type: string
+          example: "https://www.travel.taipei/audio/28"
+        file_ext:
+          type: string
+          nullable: true
+          example: null
+        modified:
+          type: string
+          example: "2025-12-10 15:55:41 +08:00"
+
+    MediaErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: "unsupported language: xx"
+
+    # Taipei Travel Tours compatibility response
+    ThemeResponse:
+      type: object
+      required:
+        - total
+        - data
+      properties:
+        total:
+          type: integer
+          example: 87
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Theme'
+
+    Theme:
+      type: object
+      required:
+        - id
+        - seasons
+        - months
+        - days
+        - title
+        - author
+        - description
+        - consume
+        - remark
+        - note
+        - url
+        - category
+        - transport
+        - users
+        - modified
+        - files
+      properties:
+        id:
+          type: integer
+          example: 1409
+        seasons:
+          type: array
+          items:
+            type: string
+          example: ["1", "2", "3", "4"]
+        months:
+          type: array
+          items:
+            type: string
+          example: ["01", "02", "03"]
+        days:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "鐵道觀光主題遊程"
+        author:
+          type: string
+        description:
+          type: string
+        consume:
+          type: string
+        remark:
+          type: string
+        note:
+          type: string
+        url:
+          type: string
+        category:
+          nullable: true
+          description: >
+            The upstream sample data always returns null for this field, and
+            its non-null schema is undocumented. Passed through as-is.
+        transport:
+          nullable: true
+          description: Same as `category` — always null in observed samples.
+        users:
+          nullable: true
+          description: Same as `category` — always null in observed samples.
+        modified:
+          type: string
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/TourFile'
+
+    TourFile:
+      type: object
+      properties:
+        src:
+          type: string
+        subject:
+          type: string
+        ext:
+          type: string
+
+    ToursErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: "unsupported language: xx"
+
+    # Taipei Travel Miscellaneous compatibility response
+    CategoriesResponse:
+      type: object
+      required:
+        - total
+        - data
+      properties:
+        total:
+          type: integer
+          example: 20
+        data:
+          $ref: '#/components/schemas/CategoriesData'
+
+    CategoriesData:
+      type: object
+      description: >
+        Confirmed for type=Tours only. The wrapper key is "Category"
+        (singular, capitalized). Other "type" values have not yet been
+        verified to use the same key.
+      required:
+        - Category
+      properties:
+        Category:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+
+    Category:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          example: 532
+        name:
+          type: string
+          example: "樂遊臺北"
+
+    MiscellaneousErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: "invalid parameter: type (Foo)"
 
 paths:
   # Health check
@@ -1204,5 +1417,205 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EventsErrorResponse'
+              example:
+                error: "upstream service unavailable"
+
+  # Taipei Travel media proxy
+  /open-api/{lang}/Media/Audio:
+    get:
+      tags:
+        - Media
+      summary: List audio guide entries
+      description: |
+        Compatibility proxy for the Taipei Travel Media/Audio open API.
+
+        No authentication is required because this endpoint serves
+        public audio guide metadata.
+      security: []
+      parameters:
+        - name: lang
+          in: path
+          required: true
+          description: Response language
+          schema:
+            type: string
+            enum:
+              - zh-tw
+              - zh-cn
+              - en
+              - ja
+              - ko
+          example: zh-tw
+        - name: page
+          in: query
+          required: false
+          description: Page number; upstream returns up to 30 results per page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+      responses:
+        "200":
+          description: Audio guide entries retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioResponse'
+        "400":
+          description: Unsupported language
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaErrorResponse'
+              example:
+                error: "unsupported language: xx"
+        "502":
+          description: Taipei Travel upstream API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaErrorResponse'
+              example:
+                error: "upstream service unavailable"
+
+  # Taipei Travel tours proxy
+  /open-api/{lang}/Tours/Theme:
+    get:
+      tags:
+        - Tours
+      summary: List themed tours
+      description: |
+        Compatibility proxy for the Taipei Travel Tours/Theme open API.
+
+        No authentication is required because this endpoint serves
+        public tourism data.
+      security: []
+      parameters:
+        - name: lang
+          in: path
+          required: true
+          description: Response language
+          schema:
+            type: string
+            enum:
+              - zh-tw
+              - zh-cn
+              - en
+              - ja
+              - ko
+          example: zh-tw
+        - name: categoryIds
+          in: query
+          required: false
+          description: >
+            Comma-separated category IDs, e.g. "532,228". Category IDs can
+            be looked up via /open-api/{lang}/Miscellaneous/Categories?type=Tours.
+          schema:
+            type: string
+          example: "532"
+        - name: page
+          in: query
+          required: false
+          description: Page number; upstream returns up to 30 results per page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+      responses:
+        "200":
+          description: Themed tours retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThemeResponse'
+        "400":
+          description: Unsupported language
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToursErrorResponse'
+              example:
+                error: "unsupported language: xx"
+        "502":
+          description: Taipei Travel upstream API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToursErrorResponse'
+              example:
+                error: "upstream service unavailable"
+
+  # Taipei Travel miscellaneous proxy
+  /open-api/{lang}/Miscellaneous/Categories:
+    get:
+      tags:
+        - Miscellaneous
+      summary: List categories for a given resource type
+      description: |
+        Compatibility proxy for the Taipei Travel Miscellaneous/Categories
+        open API.
+
+        No authentication is required. The "type" query parameter is
+        required by the upstream API; this backend validates it before
+        forwarding the request.
+      security: []
+      parameters:
+        - name: lang
+          in: path
+          required: true
+          description: Response language
+          schema:
+            type: string
+            enum:
+              - zh-tw
+              - zh-cn
+              - en
+              - ja
+              - ko
+          example: zh-tw
+        - name: type
+          in: query
+          required: true
+          description: Resource type to look up categories for
+          schema:
+            type: string
+            enum:
+              - Activity
+              - Calendar
+              - Pictorial
+              - Attractions
+              - Accommodation
+              - Tours
+          example: Tours
+      responses:
+        "200":
+          description: Categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+        "400":
+          description: Unsupported language, or missing/invalid "type" parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MiscellaneousErrorResponse'
+              examples:
+                missing_type:
+                  summary: Missing "type" parameter
+                  value:
+                    error: "invalid parameter: type ()"
+                invalid_type:
+                  summary: Invalid "type" value
+                  value:
+                    error: "invalid parameter: type (Foo)"
+        "502":
+          description: Taipei Travel upstream API unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MiscellaneousErrorResponse'
               example:
                 error: "upstream service unavailable"

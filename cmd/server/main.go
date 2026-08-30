@@ -18,8 +18,11 @@ import (
 	"github.com/tenSunFree/travel-audio-guide-go/internal/db"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/events"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/me"
+	"github.com/tenSunFree/travel-audio-guide-go/internal/media"
+	"github.com/tenSunFree/travel-audio-guide-go/internal/miscellaneous"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/server"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/taipeitravel"
+	"github.com/tenSunFree/travel-audio-guide-go/internal/tours"
 )
 
 func main() {
@@ -56,6 +59,18 @@ func main() {
 	eventsService := events.NewService(eventsRepo)
 	eventsHandler := events.NewHandler(eventsService, log)
 
+	mediaRepo := media.NewRepository(taipeiTravelClient)
+	mediaService := media.NewService(mediaRepo)
+	mediaHandler := media.NewHandler(mediaService, log)
+
+	toursRepo := tours.NewRepository(taipeiTravelClient)
+	toursService := tours.NewService(toursRepo)
+	toursHandler := tours.NewHandler(toursService, log)
+
+	miscRepo := miscellaneous.NewRepository(taipeiTravelClient)
+	miscService := miscellaneous.NewService(miscRepo)
+	miscHandler := miscellaneous.NewHandler(miscService, log)
+
 	var verifier *auth.JWTVerifier
 	if cfg.SupabaseJWKSURL != "" {
 		verifier, err = auth.NewJWTVerifierFromJWKS(cfg.SupabaseJWKSURL)
@@ -69,7 +84,16 @@ func main() {
 		log.Info("jwt verifier ready", "mode", "HS256/Secret")
 	}
 
-	router := server.NewRouter(log, verifier, meHandler, attractionsHandler, eventsHandler)
+	router := server.NewRouter(
+		log,
+		verifier,
+		meHandler,
+		attractionsHandler,
+		eventsHandler,
+		mediaHandler,
+		toursHandler,
+		miscHandler,
+	)
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           router,

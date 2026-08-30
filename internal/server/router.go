@@ -11,11 +11,23 @@ import (
 	"github.com/tenSunFree/travel-audio-guide-go/internal/auth"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/events"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/me"
+	"github.com/tenSunFree/travel-audio-guide-go/internal/media"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/middleware"
+	"github.com/tenSunFree/travel-audio-guide-go/internal/miscellaneous"
+	"github.com/tenSunFree/travel-audio-guide-go/internal/tours"
 	"github.com/tenSunFree/travel-audio-guide-go/pkg/response"
 )
 
-func NewRouter(log *slog.Logger, verifier *auth.JWTVerifier, meHandler *me.Handler, attractionsHandler *attractions.Handler, eventsHandler *events.Handler) *chi.Mux {
+func NewRouter(
+	log *slog.Logger,
+	verifier *auth.JWTVerifier,
+	meHandler *me.Handler,
+	attractionsHandler *attractions.Handler,
+	eventsHandler *events.Handler,
+	mediaHandler *media.Handler,
+	toursHandler *tours.Handler,
+	miscHandler *miscellaneous.Handler,
+) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Recovery(log))
@@ -33,6 +45,9 @@ func NewRouter(log *slog.Logger, verifier *auth.JWTVerifier, meHandler *me.Handl
 		r.Get("/{lang}/Events/News", eventsHandler.GetNews)
 		r.Get("/{lang}/Events/Activity", eventsHandler.GetActivity)
 		r.Get("/{lang}/Events/Calendar", eventsHandler.GetCalendar)
+		r.Get("/{lang}/Media/Audio", mediaHandler.GetAudio)
+		r.Get("/{lang}/Tours/Theme", toursHandler.GetTheme)
+		r.Get("/{lang}/Miscellaneous/Categories", miscHandler.GetCategories)
 	})
 
 	// Own domain API; Supabase JWT required
