@@ -1578,15 +1578,14 @@ paths:
         - name: type
           in: query
           required: true
-          description: Resource type to look up categories for
+          description: >
+            Resource type to look up categories for. Currently only "Tours"
+            is supported — its upstream response wrapper has been verified.
+            Other upstream-documented values are not yet enabled pending
+            verification of their response shape.
           schema:
             type: string
             enum:
-              - Activity
-              - Calendar
-              - Pictorial
-              - Attractions
-              - Accommodation
               - Tours
           example: Tours
       responses:
