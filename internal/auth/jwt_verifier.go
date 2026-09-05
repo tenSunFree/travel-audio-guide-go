@@ -32,10 +32,12 @@ type jwk struct {
 	E   string `json:"e"`
 }
 
+// NewJWTVerifier creates a new JWTVerifier configured for HMAC HS256 signing.
 func NewJWTVerifier(secret string) *JWTVerifier {
 	return &JWTVerifier{hmacSecret: []byte(secret)}
 }
 
+// NewJWTVerifierFromJWKS creates a new JWTVerifier by fetching the ES256 public key from a JWKS endpoint.
 func NewJWTVerifierFromJWKS(jwksURL string) (*JWTVerifier, error) {
 	resp, err := http.Get(jwksURL)
 	if err != nil {
@@ -61,6 +63,7 @@ func NewJWTVerifierFromJWKS(jwksURL string) (*JWTVerifier, error) {
 	return nil, fmt.Errorf("no ES256 key found in JWKS")
 }
 
+// Verify parses and validates a JWT token string, returning the extracted claims.
 func (v *JWTVerifier) Verify(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 

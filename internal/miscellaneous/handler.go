@@ -14,10 +14,12 @@ type Handler struct {
 	log     *slog.Logger
 }
 
+// NewHandler creates a new Handler for miscellaneous endpoints.
 func NewHandler(service *Service, log *slog.Logger) *Handler {
 	return &Handler{service: service, log: log}
 }
 
+// GetCategories handles GET /{lang}/Miscellaneous/Categories requests to retrieve categories.
 func (h *Handler) GetCategories(w http.ResponseWriter, r *http.Request) {
 	lang := chi.URLParam(r, "lang")
 	typeParam := r.URL.Query().Get("type")

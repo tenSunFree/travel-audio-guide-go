@@ -8,6 +8,7 @@ import (
 	"github.com/tenSunFree/travel-audio-guide-go/pkg/response"
 )
 
+// Recovery returns a middleware that recovers from panics and logs the error with stack trace.
 func Recovery(log *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

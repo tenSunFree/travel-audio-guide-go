@@ -14,10 +14,12 @@ type Handler struct {
 	log     *slog.Logger
 }
 
+// NewHandler creates a new Handler for media endpoints.
 func NewHandler(service *Service, log *slog.Logger) *Handler {
 	return &Handler{service: service, log: log}
 }
 
+// GetAudio handles GET /{lang}/Media/Audio requests to retrieve audio media.
 func (h *Handler) GetAudio(w http.ResponseWriter, r *http.Request) {
 	lang := chi.URLParam(r, "lang")
 	result, err := h.service.GetAudio(r.Context(), lang, r.URL.RawQuery)

@@ -17,6 +17,7 @@ type Service struct {
 	repo *Repository
 }
 
+// NewService creates a new Service for user profile operations.
 func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
@@ -26,14 +27,17 @@ type ValidationError struct {
 	Message string
 }
 
+// Error returns the error message for ValidationError.
 func (e *ValidationError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Field, e.Message)
 }
 
 type NotFoundError struct{ Message string }
 
+// Error returns the error message for NotFoundError.
 func (e *NotFoundError) Error() string { return e.Message }
 
+// GetMe retrieves or creates the profile for the authenticated user.
 func (s *Service) GetMe(ctx context.Context, user auth.User) (ProfileResponse, error) {
 	userID, err := ParseUUID(user.ID)
 	if err != nil {
@@ -56,6 +60,7 @@ func (s *Service) GetMe(ctx context.Context, user auth.User) (ProfileResponse, e
 	return toResponse(profile), nil
 }
 
+// UpdateMe updates the authenticated user's profile with the provided data.
 func (s *Service) UpdateMe(ctx context.Context, user auth.User, req UpdateMeRequest) (ProfileResponse, error) {
 	userID, err := ParseUUID(user.ID)
 	if err != nil {

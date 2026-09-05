@@ -10,10 +10,12 @@ type Repository struct {
 	client *taipeitravel.Client
 }
 
+// NewRepository creates a new Repository for events data access.
 func NewRepository(client *taipeitravel.Client) *Repository {
 	return &Repository{client: client}
 }
 
+// GetNews fetches event news from the Taipei Travel API and maps it to the response format.
 func (r *Repository) GetNews(ctx context.Context, lang string, rawQuery string) (NewsResponse, error) {
 	result, err := r.client.GetEventsNews(ctx, lang, rawQuery)
 	if err != nil {
@@ -22,6 +24,7 @@ func (r *Repository) GetNews(ctx context.Context, lang string, rawQuery string) 
 	return fromTaipeiTravelNews(result), nil
 }
 
+// GetActivity fetches event activities from the Taipei Travel API and maps it to the response format.
 func (r *Repository) GetActivity(ctx context.Context, lang string, rawQuery string) (ActivityResponse, error) {
 	result, err := r.client.GetEventsActivity(ctx, lang, rawQuery)
 	if err != nil {
@@ -30,6 +33,7 @@ func (r *Repository) GetActivity(ctx context.Context, lang string, rawQuery stri
 	return fromTaipeiTravelActivity(result), nil
 }
 
+// GetCalendar fetches event calendar from the Taipei Travel API and maps it to the response format.
 func (r *Repository) GetCalendar(ctx context.Context, lang string, rawQuery string) (CalendarResponse, error) {
 	result, err := r.client.GetEventsCalendar(ctx, lang, rawQuery)
 	if err != nil {

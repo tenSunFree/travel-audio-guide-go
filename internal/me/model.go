@@ -8,6 +8,7 @@ import (
 
 type UUID string
 
+// ParseUUID parses a string into a UUID type, validating its format.
 func ParseUUID(value string) (UUID, error) {
 	var id pgtype.UUID
 	if err := id.Scan(value); err != nil {
@@ -16,6 +17,7 @@ func ParseUUID(value string) (UUID, error) {
 	return UUID(value), nil
 }
 
+// PG converts the UUID to a pgtype.UUID for database operations.
 func (u UUID) PG() pgtype.UUID {
 	var id pgtype.UUID
 	_ = id.Scan(string(u))

@@ -14,10 +14,12 @@ type Handler struct {
 	log     *slog.Logger
 }
 
+// NewHandler creates a new Handler for tours endpoints.
 func NewHandler(service *Service, log *slog.Logger) *Handler {
 	return &Handler{service: service, log: log}
 }
 
+// GetTheme handles GET /{lang}/Tours/Theme requests to retrieve tour themes.
 func (h *Handler) GetTheme(w http.ResponseWriter, r *http.Request) {
 	lang := chi.URLParam(r, "lang")
 	result, err := h.service.GetTheme(r.Context(), lang, r.URL.RawQuery)
