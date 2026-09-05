@@ -84,3 +84,24 @@ func (c *Client) GetEventsCalendar(ctx context.Context, lang string, rawQuery st
 	err := c.getJSON(ctx, path, rawQuery, &result)
 	return result, err
 }
+
+func (c *Client) GetMiscellaneousCategories(ctx context.Context, lang string, rawQuery string) (CategoriesResponseDTO, error) {
+	var result CategoriesResponseDTO
+	path := fmt.Sprintf("%s/Miscellaneous/Categories", url.PathEscape(lang))
+	err := c.getJSON(ctx, path, rawQuery, &result)
+	return result, err
+}
+
+func (c *Client) GetMediaAudio(ctx context.Context, lang string, rawQuery string) (AudioResponseDTO, error) {
+	var result AudioResponseDTO
+	path := fmt.Sprintf("%s/Media/Audio", url.PathEscape(lang))
+	err := c.getJSON(ctx, path, rawQuery, &result)
+	return result, err
+}
+
+func (c *Client) GetToursTheme(ctx context.Context, lang string, rawQuery string) (TourThemeResponseDTO, error) {
+	var result TourThemeResponseDTO
+	path := fmt.Sprintf("%s/Tours/Theme", url.PathEscape(lang))
+	err := c.getJSON(ctx, path, rawQuery, &result)
+	return result, err
+}
