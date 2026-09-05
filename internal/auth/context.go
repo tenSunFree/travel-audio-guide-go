@@ -15,10 +15,12 @@ type User struct {
 	Role  string
 }
 
+// WithUser adds an authenticated user to the context.
 func WithUser(ctx context.Context, user User) context.Context {
 	return context.WithValue(ctx, userContextKey, user)
 }
 
+// UserFromContext retrieves the authenticated user from the context.
 func UserFromContext(ctx context.Context) (User, error) {
 	user, ok := ctx.Value(userContextKey).(User)
 	if !ok || user.ID == "" {

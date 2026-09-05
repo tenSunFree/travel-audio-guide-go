@@ -25,6 +25,7 @@ import (
 	"github.com/tenSunFree/travel-audio-guide-go/internal/tours"
 )
 
+// main is the entry point for the travel audio guide API server.
 func main() {
 	_ = godotenv.Load()
 

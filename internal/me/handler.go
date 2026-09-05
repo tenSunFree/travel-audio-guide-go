@@ -13,10 +13,12 @@ type Handler struct {
 	service *Service
 }
 
+// NewHandler creates a new Handler for the me endpoints.
 func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+// GetMe handles GET /api/v1/me requests to retrieve the authenticated user's profile.
 func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r.Context())
 	if err != nil {
@@ -33,6 +35,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, profile)
 }
 
+// UpdateMe handles PUT /api/v1/me requests to update the authenticated user's profile.
 func (h *Handler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	user, err := auth.UserFromContext(r.Context())
 	if err != nil {

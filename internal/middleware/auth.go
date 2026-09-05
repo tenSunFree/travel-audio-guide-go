@@ -9,6 +9,7 @@ import (
 	"github.com/tenSunFree/travel-audio-guide-go/pkg/response"
 )
 
+// Auth returns a middleware that validates JWT tokens and adds the authenticated user to the request context.
 func Auth(verifier *auth.JWTVerifier) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

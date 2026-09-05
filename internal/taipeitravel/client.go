@@ -15,6 +15,7 @@ type Client struct {
 	httpClient *http.Client
 }
 
+// NewClient creates a new Client for the Taipei Travel API with the given base URL.
 func NewClient(baseURL string) *Client {
 	return &Client{
 		baseURL: strings.TrimRight(baseURL, "/"),
@@ -57,6 +58,7 @@ func (c *Client) getJSON(ctx context.Context, path string, rawQuery string, targ
 	return nil
 }
 
+// GetAttractions fetches attractions data from the Taipei Travel API for the specified language.
 func (c *Client) GetAttractions(ctx context.Context, lang string, rawQuery string) (AttractionsResponseDTO, error) {
 	var result AttractionsResponseDTO
 	path := fmt.Sprintf("%s/Attractions/All", url.PathEscape(lang))
@@ -64,6 +66,7 @@ func (c *Client) GetAttractions(ctx context.Context, lang string, rawQuery strin
 	return result, err
 }
 
+// GetEventsNews fetches event news data from the Taipei Travel API for the specified language.
 func (c *Client) GetEventsNews(ctx context.Context, lang string, rawQuery string) (NewsResponseDTO, error) {
 	var result NewsResponseDTO
 	path := fmt.Sprintf("%s/Events/News", url.PathEscape(lang))
@@ -71,6 +74,7 @@ func (c *Client) GetEventsNews(ctx context.Context, lang string, rawQuery string
 	return result, err
 }
 
+// GetEventsActivity fetches event activity data from the Taipei Travel API for the specified language.
 func (c *Client) GetEventsActivity(ctx context.Context, lang string, rawQuery string) (ActivityResponseDTO, error) {
 	var result ActivityResponseDTO
 	path := fmt.Sprintf("%s/Events/Activity", url.PathEscape(lang))
@@ -78,6 +82,7 @@ func (c *Client) GetEventsActivity(ctx context.Context, lang string, rawQuery st
 	return result, err
 }
 
+// GetEventsCalendar fetches event calendar data from the Taipei Travel API for the specified language.
 func (c *Client) GetEventsCalendar(ctx context.Context, lang string, rawQuery string) (CalendarResponseDTO, error) {
 	var result CalendarResponseDTO
 	path := fmt.Sprintf("%s/Events/Calendar", url.PathEscape(lang))
@@ -85,6 +90,7 @@ func (c *Client) GetEventsCalendar(ctx context.Context, lang string, rawQuery st
 	return result, err
 }
 
+// GetMiscellaneousCategories fetches category data from the Taipei Travel API for the specified language.
 func (c *Client) GetMiscellaneousCategories(ctx context.Context, lang string, rawQuery string) (CategoriesResponseDTO, error) {
 	var result CategoriesResponseDTO
 	path := fmt.Sprintf("%s/Miscellaneous/Categories", url.PathEscape(lang))
@@ -92,6 +98,7 @@ func (c *Client) GetMiscellaneousCategories(ctx context.Context, lang string, ra
 	return result, err
 }
 
+// GetMediaAudio fetches audio media data from the Taipei Travel API for the specified language.
 func (c *Client) GetMediaAudio(ctx context.Context, lang string, rawQuery string) (AudioResponseDTO, error) {
 	var result AudioResponseDTO
 	path := fmt.Sprintf("%s/Media/Audio", url.PathEscape(lang))
@@ -99,6 +106,7 @@ func (c *Client) GetMediaAudio(ctx context.Context, lang string, rawQuery string
 	return result, err
 }
 
+// GetToursTheme fetches tour theme data from the Taipei Travel API for the specified language.
 func (c *Client) GetToursTheme(ctx context.Context, lang string, rawQuery string) (TourThemeResponseDTO, error) {
 	var result TourThemeResponseDTO
 	path := fmt.Sprintf("%s/Tours/Theme", url.PathEscape(lang))

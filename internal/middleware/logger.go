@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Logger returns a middleware that logs HTTP requests with method, path, status, and duration.
 func Logger(log *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -27,6 +28,7 @@ type wrappedWriter struct {
 	status int
 }
 
+// WriteHeader captures the status code before delegating to the underlying ResponseWriter.
 func (w *wrappedWriter) WriteHeader(status int) {
 	w.status = status
 	w.ResponseWriter.WriteHeader(status)

@@ -18,6 +18,7 @@ import (
 	"github.com/tenSunFree/travel-audio-guide-go/pkg/response"
 )
 
+// NewRouter creates and configures the HTTP router with all routes and middleware.
 func NewRouter(
 	log *slog.Logger,
 	verifier *auth.JWTVerifier,

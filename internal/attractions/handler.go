@@ -14,10 +14,12 @@ type Handler struct {
 	log     *slog.Logger
 }
 
+// NewHandler creates a new Handler for attractions endpoints.
 func NewHandler(service *Service, log *slog.Logger) *Handler {
 	return &Handler{service: service, log: log}
 }
 
+// GetAll handles GET /{lang}/Attractions/All requests to retrieve all attractions.
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	lang := chi.URLParam(r, "lang")
 

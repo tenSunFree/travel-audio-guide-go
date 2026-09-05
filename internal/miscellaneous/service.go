@@ -9,12 +9,14 @@ type Service struct {
 	repo *Repository
 }
 
+// NewService creates a new Service for miscellaneous operations.
 func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
 type ValidationError struct{ Message string }
 
+// Error returns the error message for ValidationError.
 func (e *ValidationError) Error() string { return e.Message }
 
 var categoriesSupportedLanguages = map[string]bool{
@@ -38,6 +40,7 @@ var categoriesSupportedTypes = map[string]bool{
 	"Tours": true,
 }
 
+// GetCategories retrieves categories for the specified language and type, validating both parameters.
 func (s *Service) GetCategories(ctx context.Context, lang string, typeParam string, rawQuery string) (CategoriesResponse, error) {
 	if !categoriesSupportedLanguages[lang] {
 		return CategoriesResponse{}, &ValidationError{Message: fmt.Sprintf("unsupported language: %s", lang)}

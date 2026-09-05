@@ -14,22 +14,26 @@ type Handler struct {
 	log     *slog.Logger
 }
 
+// NewHandler creates a new Handler for events endpoints.
 func NewHandler(service *Service, log *slog.Logger) *Handler {
 	return &Handler{service: service, log: log}
 }
 
+// GetNews handles GET /{lang}/Events/News requests to retrieve event news.
 func (h *Handler) GetNews(w http.ResponseWriter, r *http.Request) {
 	lang := chi.URLParam(r, "lang")
 	result, err := h.service.GetNews(r.Context(), lang, r.URL.RawQuery)
 	h.writeResult(w, "events_news", lang, r.URL.RawQuery, result, err)
 }
 
+// GetActivity handles GET /{lang}/Events/Activity requests to retrieve event activities.
 func (h *Handler) GetActivity(w http.ResponseWriter, r *http.Request) {
 	lang := chi.URLParam(r, "lang")
 	result, err := h.service.GetActivity(r.Context(), lang, r.URL.RawQuery)
 	h.writeResult(w, "events_activity", lang, r.URL.RawQuery, result, err)
 }
 
+// GetCalendar handles GET /{lang}/Events/Calendar requests to retrieve event calendar.
 func (h *Handler) GetCalendar(w http.ResponseWriter, r *http.Request) {
 	lang := chi.URLParam(r, "lang")
 	result, err := h.service.GetCalendar(r.Context(), lang, r.URL.RawQuery)

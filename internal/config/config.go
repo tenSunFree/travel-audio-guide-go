@@ -14,6 +14,7 @@ type Config struct {
 	TaipeiTravelBaseURL string
 }
 
+// Load reads configuration from environment variables and returns a Config instance.
 func Load() (Config, error) {
 	cfg := Config{
 		AppEnv:              getEnv("APP_ENV", "local"),
