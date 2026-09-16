@@ -86,6 +86,7 @@ func main() {
 
 	router := server.NewRouter(
 		log,
+		pool,
 		verifier,
 		meHandler,
 		attractionsHandler,

@@ -63,6 +63,7 @@ news, activities, event calendar, audio guides, themed tours, and category looku
 - `GET /open-api/{lang}/Media/Audio` — proxy for Taipei Travel audio guide entries
 - `GET /open-api/{lang}/Tours/Theme` — proxy for Taipei Travel themed tours
 - `GET /open-api/{lang}/Miscellaneous/Categories` — proxy for category lookups by resource type
+- `GET /healthz` / `GET /readyz` — liveness and readiness checks (see [Health Checks](#health-checks))
 - Swagger UI for interactive API documentation
 
 ---
@@ -134,14 +135,15 @@ Copy `.env.example` to `.env` and fill in the values:
 cp .env.example .env
 ```
 
-| Variable                 | Required                                                        | Description                                                                         | Example                                                                       |
-|--------------------------|------------------------------------------------------------------|--------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
-| `APP_ENV`                | No                                                               | Application environment, defaults to `local`                                         | `local`                                                                         |
-| `HTTP_ADDR`               | No                                                               | Address/port the HTTP server listens on, defaults to `:8080`                         | `:8080`                                                                         |
-| `DATABASE_URL`            | **Yes**                                                          | PostgreSQL connection string                                                          | `postgres://user:password@localhost:5432/travel_audio_guide?sslmode=disable`   |
-| `SUPABASE_JWKS_URL`       | One of `SUPABASE_JWKS_URL` / `SUPABASE_JWT_SECRET` is required  | Supabase JWKS endpoint, used for ES256 asymmetric verification (recommended)          | `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json`              |
-| `SUPABASE_JWT_SECRET`     | Same as above                                                    | Supabase JWT Secret, used for HS256 symmetric verification (fallback)                 | `your-supabase-jwt-secret`                                                     |
-| `TAIPEI_TRAVEL_BASE_URL`  | No                                                               | Base URL of the upstream Taipei Travel open API, defaults to the official endpoint    | `https://www.travel.taipei/open-api`                                           |
+| Variable                 | Required                                                        | Description                                                                                                                             | Example                                                                       |
+|--------------------------|------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
+| `APP_ENV`                | No                                                               | Application environment, defaults to `local`                                                                                              | `local`                                                                         |
+| `HTTP_ADDR`               | No                                                               | Address/port the HTTP server listens on, defaults to `:8080`. If the `PORT` env var is set (e.g. on Cloud Run), `PORT` takes precedence over `HTTP_ADDR`. | `:8080`                                                                         |
+| `PORT`                   | No                                                               | Injected automatically by Cloud Run (and similar platforms) — not meant to be set manually in local development. When present, it overrides `HTTP_ADDR`. | `8080`                                                                          |
+| `DATABASE_URL`            | **Yes**                                                          | PostgreSQL connection string                                                                                                              | `postgres://user:password@localhost:5432/travel_audio_guide?sslmode=disable`   |
+| `SUPABASE_JWKS_URL`       | One of `SUPABASE_JWKS_URL` / `SUPABASE_JWT_SECRET` is required  | Supabase JWKS endpoint, used for ES256 asymmetric verification (recommended)                                                               | `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json`              |
+| `SUPABASE_JWT_SECRET`     | Same as above                                                    | Supabase JWT Secret, used for HS256 symmetric verification (fallback)                                                                      | `your-supabase-jwt-secret`                                                     |
+| `TAIPEI_TRAVEL_BASE_URL`  | No                                                               | Base URL of the upstream Taipei Travel open API, defaults to the official endpoint                                                         | `https://www.travel.taipei/open-api`                                           |
 
 > You can find `SUPABASE_JWKS_URL` / `SUPABASE_JWT_SECRET` in your Supabase project dashboard under
 **Project Settings → API**.
@@ -191,8 +193,36 @@ make run
 
 ```bash
 curl http://localhost:8080/healthz
-# {"status":"ok"}
+# {"success":true,"data":{"status":"ok"}}
+
+curl http://localhost:8080/readyz
+# {"success":true,"data":{"status":"ready"}}
 ```
+
+---
+
+## Health Checks
+
+Two endpoints are exposed for operational checks, and they answer different questions:
+
+| Endpoint    | Checks                                   | Typical use                                                                 |
+|-------------|-------------------------------------------|-------------------------------------------------------------------------------|
+| `GET /healthz` | The Go process / HTTP server is running | Liveness — "is the container alive at all?"                                   |
+| `GET /readyz`  | The above, plus a live ping to the PostgreSQL connection pool | Readiness — "is the service actually able to serve real traffic?" |
+
+```bash
+curl http://localhost:8080/healthz
+# {"success":true,"data":{"status":"ok"}}
+
+curl http://localhost:8080/readyz
+# 200 → {"success":true,"data":{"status":"ready"}}
+# 503 → {"success":false,"error":"database not ready"}
+```
+
+`/readyz` returns `503` if the database is unreachable, instead of `200`. Neither endpoint requires
+authentication. These endpoints exist primarily for container orchestration platforms (e.g. Cloud
+Run health checks, Kubernetes probes) — they are not part of the versioned `/api/v1` or `/open-api`
+contract.
 
 ---
 
