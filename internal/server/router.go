@@ -1,11 +1,14 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/tenSunFree/travel-audio-guide-go/internal/attractions"
 	"github.com/tenSunFree/travel-audio-guide-go/internal/auth"
@@ -20,6 +23,7 @@ import (
 
 func NewRouter(
 	log *slog.Logger,
+	pool *pgxpool.Pool,
 	verifier *auth.JWTVerifier,
 	meHandler *me.Handler,
 	attractionsHandler *attractions.Handler,
@@ -37,6 +41,17 @@ func NewRouter(
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+
+	r.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := pool.Ping(ctx); err != nil {
+			log.Warn("readiness check failed", "error", err)
+			response.Error(w, http.StatusServiceUnavailable, "database not ready")
+			return
+		}
+		response.JSON(w, http.StatusOK, map[string]string{"status": "ready"})
 	})
 
 	// Third-party compatible proxy; no Supabase JWT required
