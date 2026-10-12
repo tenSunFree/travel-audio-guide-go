@@ -14,7 +14,7 @@ docker-up:
 	@echo ""
 	@echo "Services started:"
 	@echo "  Swagger UI: http://localhost:8081/"
-	@echo "  API Health: http://localhost:8080/healthz"
+	@echo "  API Health: http://localhost:8080/health"
 
 ## Start only PostgreSQL (commonly used during development)
 docker-db:

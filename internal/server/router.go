@@ -39,11 +39,11 @@ func NewRouter(
 	r.Use(middleware.CORS)
 	r.Use(chimiddleware.RequestID)
 
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	r.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/ready", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 		if err := pool.Ping(ctx); err != nil {

@@ -832,11 +832,16 @@ components:
 
 paths:
   # Health check
-  /healthz:
+  /health:
     get:
       tags: [System]
       summary: Health check
-      description: Verify that the server is running normally. No token required.
+      description: |
+        Liveness check: verifies that the server process is running. It does not check the database.
+        No token required.
+
+        The path deliberately does not end in the letter `z`, because Cloud Run reserves some
+        paths ending in `z`.
       security: []    # Override global security; this endpoint does not require authentication
       responses:
         "200":
@@ -860,6 +865,49 @@ paths:
                 data:
                   status: "ok"
 
+  # Readiness check
+  /ready:
+    get:
+      tags: [System]
+      summary: Readiness check
+      description: |
+        Readiness check: verifies that the PostgreSQL connection pool responds to a ping
+        (2 second timeout). No token required.
+
+        Returns `503` when the database is unreachable, so orchestrators can stop routing
+        traffic without restarting the container.
+      security: []    # Override global security; this endpoint does not require authentication
+      responses:
+        "200":
+          description: Service is ready to serve traffic
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: "ready"
+              example:
+                success: true
+                data:
+                  status: "ready"
+        "503":
+          description: The database is not reachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "database not ready"
+
   # /api/v1/me
   /api/v1/me:
     get:
@@ -879,7 +927,7 @@ paths:
 
         ### Backend Flow
         1. Retrieve the Bearer token from the `Authorization` header.
-        2. Verify the Supabase JWT (HS256).
+        2. Verify the Supabase JWT (ES256 via the JWKS endpoint; HS256 only as a fallback when just a JWT secret is configured).
         3. Retrieve the `user_id` from `claims.sub`.
         4. Query the `profiles` table.
         5. If it does not exist, it will be automatically created. `preferred_language` is preset to `zh-TW`.
