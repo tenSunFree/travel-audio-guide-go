@@ -63,7 +63,7 @@ news, activities, event calendar, audio guides, themed tours, and category looku
 - `GET /open-api/{lang}/Media/Audio` — proxy for Taipei Travel audio guide entries
 - `GET /open-api/{lang}/Tours/Theme` — proxy for Taipei Travel themed tours
 - `GET /open-api/{lang}/Miscellaneous/Categories` — proxy for category lookups by resource type
-- `GET /healthz` / `GET /readyz` — liveness and readiness checks (see [Health Checks](#health-checks))
+- `GET /health` / `GET /ready` — liveness and readiness checks (see [Health Checks](#health-checks))
 - Swagger UI for interactive API documentation
 
 ---
@@ -192,10 +192,10 @@ make run
 ### Verify it's running
 
 ```bash
-curl http://localhost:8080/healthz
+curl http://localhost:8080/health
 # {"success":true,"data":{"status":"ok"}}
 
-curl http://localhost:8080/readyz
+curl http://localhost:8080/ready
 # {"success":true,"data":{"status":"ready"}}
 ```
 
@@ -207,19 +207,19 @@ Two endpoints are exposed for operational checks, and they answer different ques
 
 | Endpoint    | Checks                                   | Typical use                                                                 |
 |-------------|-------------------------------------------|-------------------------------------------------------------------------------|
-| `GET /healthz` | The Go process / HTTP server is running | Liveness — "is the container alive at all?"                                   |
-| `GET /readyz`  | The above, plus a live ping to the PostgreSQL connection pool | Readiness — "is the service actually able to serve real traffic?" |
+| `GET /health` | The Go process / HTTP server is running | Liveness — "is the container alive at all?"                                   |
+| `GET /ready` | The above, plus a live ping to the PostgreSQL connection pool | Readiness — "is the service actually able to serve real traffic?" |
 
 ```bash
-curl http://localhost:8080/healthz
+curl http://localhost:8080/health
 # {"success":true,"data":{"status":"ok"}}
 
-curl http://localhost:8080/readyz
+curl http://localhost:8080/ready
 # 200 → {"success":true,"data":{"status":"ready"}}
 # 503 → {"success":false,"error":"database not ready"}
 ```
 
-`/readyz` returns `503` if the database is unreachable, instead of `200`. Neither endpoint requires
+`/ready` returns `503` if the database is unreachable, instead of `200`. Neither endpoint requires
 authentication. These endpoints exist primarily for container orchestration platforms (e.g. Cloud
 Run health checks, Kubernetes probes) — they are not part of the versioned `/api/v1` or `/open-api`
 contract.
