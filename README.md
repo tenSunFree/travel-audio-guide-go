@@ -664,13 +664,24 @@ JWT secret is stored on the service.
 Health endpoints are `/health` and `/ready` rather than `/healthz` and `/readyz`, because Cloud Run
 reserves some URL paths ending in `z` (see Cloud Run "Known issues → Reserved URL paths").
 
+Set the variables once (replace the values for your project):
+
+```bash
+PROJECT_ID="your-gcp-project-id"
+REGION="asia-east1"
+SERVICE="travel-audio-guide-api"
+```
+
 Manual deploy of a new image:
 
 ```bash
-IMAGE=asia-east1-docker.pkg.dev/<project-id>/travel-audio-guide/api:$(git rev-parse --short HEAD)
+# One-time: let Docker authenticate to Artifact Registry
+gcloud auth configure-docker "${REGION}-docker.pkg.dev"
+
+IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/travel-audio-guide/api:$(git rev-parse --short HEAD)"
 docker build -t "$IMAGE" .
 docker push "$IMAGE"
-gcloud run deploy travel-audio-guide-api --image="$IMAGE" --region=asia-east1
+gcloud run deploy "$SERVICE" --image="$IMAGE" --region="$REGION"
 ```
 
 Only `--image` and `--region` are passed on redeploy; the service account, secret, Cloud SQL
@@ -679,16 +690,21 @@ connection and environment variables carry over from the previous revision.
 Smoke test after a deploy:
 
 ```bash
-curl -i "$SERVICE_URL/health"   # 200
-curl -i "$SERVICE_URL/ready"    # 200 when Cloud SQL is reachable, 503 otherwise
+SERVICE_URL="$(gcloud run services describe "$SERVICE" --region="$REGION" --format='value(status.url)')"
+
+curl -i "$SERVICE_URL/health"    # 200
+curl -i "$SERVICE_URL/ready"     # 200 when Cloud SQL is reachable, 503 otherwise
 curl -i "$SERVICE_URL/api/v1/me" # 401 without a token
 ```
 
 Rollback by sending traffic back to a previous revision:
 
 ```bash
-gcloud run services update-traffic travel-audio-guide-api --region=asia-east1 \
-  --to-revisions=<previous-revision>=100
+gcloud run revisions list --service="$SERVICE" --region="$REGION"
+
+PREVIOUS_REVISION="revision-name-from-the-list-above"
+gcloud run services update-traffic "$SERVICE" --region="$REGION" \
+  --to-revisions="${PREVIOUS_REVISION}=100"
 ```
 
 ---
