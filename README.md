@@ -6,6 +6,12 @@
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![sqlc](https://img.shields.io/badge/Codegen-sqlc-00ADD8)](https://sqlc.dev)
 [![Docker](https://img.shields.io/badge/Container-Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com)
+[![Auth](https://img.shields.io/badge/Auth-Supabase_JWT-3FCF8E?logo=supabase&logoColor=white)](#security-design)
+[![Testing](https://img.shields.io/badge/Testing-Go_test-FF9800)](#testing)
+[![Deploy](https://img.shields.io/badge/Deploy-Cloud_Run-4285F4?logo=googlecloud&logoColor=white)](#deployment-google-cloud)
+[![Database](https://img.shields.io/badge/Cloud_SQL-PostgreSQL_16-4285F4?logo=googlecloud&logoColor=white)](#deployment-google-cloud)
+[![Secrets](https://img.shields.io/badge/Secrets-Secret_Manager-4285F4?logo=googlecloud&logoColor=white)](#deployment-google-cloud)
+[![OpenAPI](https://img.shields.io/badge/API-OpenAPI_3.0-6BA539?logo=openapiinitiative&logoColor=white)](./docs/openapi.yaml)
 [![Architecture](https://img.shields.io/badge/Architecture-Feature--First-4CAF50)](#tech-stack)
 
 ---
@@ -65,6 +71,9 @@ news, activities, event calendar, audio guides, themed tours, and category looku
 - `GET /open-api/{lang}/Miscellaneous/Categories` — proxy for category lookups by resource type
 - `GET /health` / `GET /ready` — liveness and readiness checks (see [Health Checks](#health-checks))
 - Swagger UI for interactive API documentation
+- Deployed on Google Cloud Run with Cloud SQL and Secret Manager (see
+  [Deployment (Google Cloud)](#deployment-google-cloud))
+- Unit tests for configuration loading and HTTP routing (see [Testing](#testing))
 
 ---
 
@@ -90,6 +99,13 @@ news, activities, event calendar, audio guides, themed tours, and category looku
   API contract defined in `docs/openapi.yaml`, served via Docker as an interactive Swagger UI
 - **Docker + Docker Compose**
   Multi-stage build (builder + alpine), Compose orchestrates PostgreSQL, Go API, and Swagger UI
+- **Google Cloud Run + Cloud SQL + Secret Manager**
+  Stateless container deployment. The runtime service account is separate from any deploy identity;
+  `DATABASE_URL` comes from Secret Manager (pinned to a secret version), and Cloud SQL is reached
+  over the Cloud SQL Unix socket.
+- **Go `testing` + `httptest`**
+  Standard-library tests, no extra framework. Router tests run the real `NewRouter` against
+  `httptest.NewRecorder`.
 - **Layered Architecture (Feature-first)**
   Each feature is grouped under `internal/<feature>/` with three internal layers:
   `handler` → `service` → `repository`.
@@ -589,7 +605,27 @@ Content-Type: application/json
 ## Testing
 
 ```bash
-make test
+make test        # or: go test ./...
+```
+
+Current coverage is intentionally small and focused:
+
+| Package           | What is tested                                                                                  |
+|-------------------|---------------------------------------------------------------------------------------------------|
+| `internal/config` | `PORT` takes precedence over `HTTP_ADDR` (default `:8080`); `Load()` fails without `DATABASE_URL` or a Supabase verifier setting; defaults for `APP_ENV` and the Taipei Travel base URL |
+| `internal/server` | `GET /health` returns 200; legacy `/healthz` and `/readyz` stay unregistered (404); `/api/v1/me` returns 401 for a missing, non-Bearer, or empty token; unknown routes return a JSON 404 |
+
+The router tests build the real router with `nil` dependencies, so they never need a database, a
+JWKS endpoint, or network access. `/ready` is not covered yet because it needs a real connection
+pool; it can be tested later by extracting a small interface that exposes only `Ping`.
+
+Before opening a pull request:
+
+```bash
+gofmt -l .        # should print nothing
+go vet ./...
+go test ./...
+go build ./...
 ```
 
 ---
@@ -607,6 +643,69 @@ make test
 | `make sqlc-gen`    | Regenerate type-safe Go code from SQL (requires `sqlc`)      |
 | `make tidy`        | Run `go mod tidy`                                             |
 | `make test`        | Run all tests                                                 |
+
+---
+
+## Deployment (Google Cloud)
+
+The API runs on Google Cloud in the `asia-east1` region:
+
+| Component         | Role                                                                                     |
+|-------------------|-------------------------------------------------------------------------------------------|
+| Cloud Run         | Runs the container. Listens on the `PORT` injected by Cloud Run                           |
+| Artifact Registry | Stores images, tagged with the Git commit SHA (`api:<git-sha>`)                           |
+| Cloud SQL         | PostgreSQL 16, reached through the Cloud SQL Unix socket; deletion protection, automated backups and point-in-time recovery enabled |
+| Secret Manager    | Holds `DATABASE_URL`, pinned to a secret version (not `latest`)                           |
+| Service accounts  | A dedicated runtime service account with only Secret Accessor and Cloud SQL Client roles  |
+
+`SUPABASE_JWKS_URL` is a plain environment variable. Production uses JWKS-only verification, so no
+JWT secret is stored on the service.
+
+Health endpoints are `/health` and `/ready` rather than `/healthz` and `/readyz`, because Cloud Run
+reserves some URL paths ending in `z` (see Cloud Run "Known issues → Reserved URL paths").
+
+Set the variables once (replace the values for your project):
+
+```bash
+PROJECT_ID="your-gcp-project-id"
+REGION="asia-east1"
+SERVICE="travel-audio-guide-api"
+```
+
+Manual deploy of a new image:
+
+```bash
+# One-time: let Docker authenticate to Artifact Registry
+gcloud auth configure-docker "${REGION}-docker.pkg.dev"
+
+IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/travel-audio-guide/api:$(git rev-parse --short HEAD)"
+docker build -t "$IMAGE" .
+docker push "$IMAGE"
+gcloud run deploy "$SERVICE" --image="$IMAGE" --region="$REGION"
+```
+
+Only `--image` and `--region` are passed on redeploy; the service account, secret, Cloud SQL
+connection and environment variables carry over from the previous revision.
+
+Smoke test after a deploy:
+
+```bash
+SERVICE_URL="$(gcloud run services describe "$SERVICE" --region="$REGION" --format='value(status.url)')"
+
+curl -i "$SERVICE_URL/health"    # 200
+curl -i "$SERVICE_URL/ready"     # 200 when Cloud SQL is reachable, 503 otherwise
+curl -i "$SERVICE_URL/api/v1/me" # 401 without a token
+```
+
+Rollback by sending traffic back to a previous revision:
+
+```bash
+gcloud run revisions list --service="$SERVICE" --region="$REGION"
+
+PREVIOUS_REVISION="revision-name-from-the-list-above"
+gcloud run services update-traffic "$SERVICE" --region="$REGION" \
+  --to-revisions="${PREVIOUS_REVISION}=100"
+```
 
 ---
 
@@ -659,7 +758,8 @@ travel-audio-guide-go
 │  │  ├─ context.go
 │  │  └─ jwt_verifier.go
 │  ├─ config
-│  │  └─ config.go
+│  │  ├─ config.go
+│  │  └─ config_test.go
 │  ├─ database
 │  │  └─ postgres.go
 │  ├─ db
@@ -697,6 +797,7 @@ travel-audio-guide-go
 │  │  └─ service.go
 │  ├─ server
 │  │  ├─ router.go
+│  │  ├─ router_test.go
 │  │  └─ server.go
 │  ├─ taipeitravel
 │  │  ├─ client.go
